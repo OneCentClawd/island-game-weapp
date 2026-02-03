@@ -5452,4 +5452,27 @@ function updateAnimations(dt) {
   } catch (e) {
     console.error('云端存档加载失败:', e);
   }
+  
+  // 如果用户还没授权，询问是否授权昵称
+  const userInfo = CloudService.getUserInfo();
+  if (userInfo.nickname === '匿名玩家') {
+    // 延迟一下再弹窗，让界面先加载完
+    setTimeout(() => {
+      wx.showModal({
+        title: '授权昵称',
+        content: '授权微信昵称可以在排行榜显示你的名字，是否授权？',
+        confirmText: '授权',
+        cancelText: '暂不',
+        success: (res) => {
+          if (res.confirm) {
+            CloudService.requestUserProfile().then((info) => {
+              if (info) {
+                showInfo(`✅ 欢迎 ${info.nickname}！`);
+              }
+            });
+          }
+        }
+      });
+    }, 1000);
+  }
 })();
