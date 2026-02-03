@@ -417,14 +417,15 @@ function renderMainMenu() {
   // 按钮区域
   const btnStartY = titleY + 155;
   const btnEndY = H - safeBottom - 40;
-  const btnCount = 5;
-  const btnSpacing = Math.min(65, (btnEndY - btnStartY) / btnCount);
+  const btnCount = 6;
+  const btnSpacing = Math.min(60, (btnEndY - btnStartY) / btnCount);
   
   const buttons = [
     { text: '🎮 消消乐', scene: 'LevelSelect' },
     { text: '🔄 合成模式', scene: 'Merge' },
     { text: '🏝️ 我的小岛', scene: 'Island' },
     { text: '📋 每日任务', scene: 'DailyTask' },
+    { text: '🏆 成就', scene: 'Achievement' },
     { text: '🛒 商店', scene: 'Shop' },
   ];
   
