@@ -177,27 +177,33 @@ const CloudService = {
     return { nickname: '匿名玩家', avatar: '' };
   },
   
-  // 请求用户授权（必须由用户点击触发）
+  // 请求用户授权（让用户输入昵称）
   async requestUserProfile() {
-    try {
-      const res = await wx.getUserProfile({
-        desc: '用于排行榜显示昵称'
+    return new Promise((resolve) => {
+      wx.showModal({
+        title: '设置昵称',
+        editable: true,
+        placeholderText: '请输入你的昵称',
+        success: async (res) => {
+          if (res.confirm && res.content && res.content.trim()) {
+            this.userInfo = {
+              nickname: res.content.trim().substring(0, 12),
+              avatar: ''
+            };
+            // 保存到本地
+            wx.setStorageSync('user_profile', JSON.stringify(this.userInfo));
+            
+            // 立即更新排行榜里的昵称
+            await this.updateLeaderboardProfile();
+            
+            resolve(this.userInfo);
+          } else {
+            resolve(null);
+          }
+        },
+        fail: () => resolve(null)
       });
-      this.userInfo = {
-        nickname: res.userInfo.nickName,
-        avatar: res.userInfo.avatarUrl
-      };
-      // 保存到本地
-      wx.setStorageSync('user_profile', JSON.stringify(this.userInfo));
-      
-      // 立即更新排行榜里的昵称
-      await this.updateLeaderboardProfile();
-      
-      return this.userInfo;
-    } catch (e) {
-      console.log('用户拒绝授权');
-      return null;
-    }
+    });
   },
   
   // 更新排行榜里的昵称
@@ -5068,7 +5074,7 @@ function renderLeaderboardScene() {
     ctx.fillStyle = '#fff';
     ctx.font = `bold ${11 * scale}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText('授权昵称', (W - 52) * scale, (capsuleBottom - 3) * scale);
+    ctx.fillText('设置昵称', (W - 52) * scale, (capsuleBottom - 3) * scale);
   } else {
     // 显示当前昵称
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
@@ -5473,15 +5479,15 @@ function updateAnimations(dt) {
     console.error('云端存档加载失败:', e);
   }
   
-  // 如果用户还没授权，询问是否授权昵称
+  // 如果用户还没授权，询问是否设置昵称
   const userInfo = CloudService.getUserInfo();
   if (userInfo.nickname === '匿名玩家') {
     // 延迟一下再弹窗，让界面先加载完
     setTimeout(() => {
       wx.showModal({
-        title: '授权昵称',
-        content: '授权微信昵称可以在排行榜显示你的名字，是否授权？',
-        confirmText: '授权',
+        title: '设置昵称',
+        content: '设置一个昵称，在排行榜展示你的名字吧！',
+        confirmText: '设置',
         cancelText: '暂不',
         success: (res) => {
           if (res.confirm) {
