@@ -465,6 +465,7 @@ function switchScene(sceneName, data = {}) {
     case 'Achievement': initAchievementScene(); break;
     case 'DailyTask': initDailyTaskScene(); break;
     case 'Leaderboard': initLeaderboardScene(); break;
+    case 'Settings': break; // 无需初始化
   }
 }
 
@@ -603,7 +604,7 @@ function handleMainMenuTouch(x, y) {
   
   // 设置图标 - 右下角
   if (x >= W - 65 && x <= W - 15 && y >= iconY - 20 && y <= iconY + 20) {
-    showInfo('⚙️ 设置功能开发中...');
+    switchScene('Settings');
     return;
   }
 }
@@ -5218,6 +5219,151 @@ function renderLeaderboardScene() {
 }
 
 // ===================
+// 设置场景
+// ===================
+function handleSettingsTouch(x, y) {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  
+  let capsuleBottom = 80;
+  try {
+    const capsule = wx.getMenuButtonBoundingClientRect();
+    capsuleBottom = capsule.bottom + 15;
+  } catch (e) {}
+  
+  // 返回按钮
+  if (x >= 15 && x <= 85 && y >= capsuleBottom - 20 && y <= capsuleBottom + 14) {
+    switchScene('MainMenu');
+    return;
+  }
+  
+  // 修改昵称按钮
+  const btnY1 = capsuleBottom + 80;
+  if (x >= 30 && x <= W - 30 && y >= btnY1 && y <= btnY1 + 50) {
+    CloudService.requestUserProfile().then((info) => {
+      if (info) {
+        showInfo(`✅ 昵称已更新为: ${info.nickname}`);
+      }
+    });
+    return;
+  }
+  
+  // 清除缓存按钮
+  const btnY2 = btnY1 + 70;
+  if (x >= 30 && x <= W - 30 && y >= btnY2 && y <= btnY2 + 50) {
+    wx.showModal({
+      title: '清除缓存',
+      content: '确定要清除本地缓存吗？（存档不会丢失）',
+      success: (res) => {
+        if (res.confirm) {
+          wx.clearStorageSync();
+          showInfo('✅ 缓存已清除，重启生效');
+        }
+      }
+    });
+    return;
+  }
+  
+  // 重置存档按钮
+  const btnY3 = btnY2 + 70;
+  if (x >= 30 && x <= W - 30 && y >= btnY3 && y <= btnY3 + 50) {
+    wx.showModal({
+      title: '⚠️ 重置存档',
+      content: '确定要删除所有游戏数据吗？此操作不可恢复！',
+      confirmColor: '#ff4444',
+      success: (res) => {
+        if (res.confirm) {
+          SaveManager.createNew();
+          SaveManager.save();
+          showInfo('✅ 存档已重置');
+        }
+      }
+    });
+    return;
+  }
+}
+
+function renderSettingsScene() {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  
+  // 背景
+  const gradient = ctx.createLinearGradient(0, 0, 0, H * scale);
+  gradient.addColorStop(0, '#43cea2');
+  gradient.addColorStop(1, '#185a9d');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, W * scale, H * scale);
+  
+  let capsuleBottom = 80;
+  try {
+    const capsule = wx.getMenuButtonBoundingClientRect();
+    capsuleBottom = capsule.bottom + 15;
+  } catch (e) {}
+  
+  // 标题
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${22 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('⚙️ 设置', (W / 2) * scale, capsuleBottom * scale);
+  
+  // 当前昵称显示
+  const userInfo = CloudService.getUserInfo();
+  ctx.font = `${14 * scale}px sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.fillText(`当前昵称: ${userInfo.nickname}`, (W / 2) * scale, (capsuleBottom + 35) * scale);
+  
+  // 修改昵称按钮
+  const btnY1 = capsuleBottom + 80;
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  roundRect(30 * scale, btnY1 * scale, (W - 60) * scale, 50 * scale, 12 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${16 * scale}px sans-serif`;
+  ctx.fillText('✏️ 修改昵称', (W / 2) * scale, (btnY1 + 28) * scale);
+  
+  // 清除缓存按钮
+  const btnY2 = btnY1 + 70;
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  roundRect(30 * scale, btnY2 * scale, (W - 60) * scale, 50 * scale, 12 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText('🗑️ 清除缓存', (W / 2) * scale, (btnY2 + 28) * scale);
+  
+  // 重置存档按钮
+  const btnY3 = btnY2 + 70;
+  ctx.fillStyle = 'rgba(255,100,100,0.3)';
+  roundRect(30 * scale, btnY3 * scale, (W - 60) * scale, 50 * scale, 12 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#ffcccc';
+  ctx.fillText('⚠️ 重置存档', (W / 2) * scale, (btnY3 + 28) * scale);
+  
+  // 版本信息
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = `${12 * scale}px sans-serif`;
+  ctx.fillText('小岛物语 v0.3.1', (W / 2) * scale, (H - safeBottom - 20) * scale);
+  
+  // 返回按钮
+  const btnX = 15;
+  const btnY = capsuleBottom - 20;
+  const btnW = 70;
+  const btnH = 34;
+  
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  roundRect((btnX + 2) * scale, (btnY + 2) * scale, btnW * scale, btnH * scale, 17 * scale);
+  ctx.fill();
+  
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  roundRect(btnX * scale, btnY * scale, btnW * scale, btnH * scale, 17 * scale);
+  ctx.fill();
+  
+  ctx.fillStyle = '#185a9d';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.fillText('返回', (btnX + btnW / 2) * scale, (btnY + btnH / 2) * scale);
+}
+
+// ===================
 // 通用UI组件
 // ===================
 function drawButton(x, y, w, h, text) {
@@ -5353,6 +5499,7 @@ wx.onTouchStart(function(e) {
       case 'Achievement': handleAchievementTouch(x, y); break;
       case 'DailyTask': handleDailyTaskTouch(x, y); break;
       case 'Leaderboard': handleLeaderboardTouch(x, y); break;
+      case 'Settings': handleSettingsTouch(x, y); break;
     }
   }
 });
@@ -5412,6 +5559,7 @@ function render() {
     case 'Achievement': renderAchievementScene(); break;
     case 'DailyTask': renderDailyTaskScene(); break;
     case 'Leaderboard': renderLeaderboardScene(); break;
+    case 'Settings': renderSettingsScene(); break;
   }
   
   requestAnimationFrame(render);
