@@ -476,6 +476,12 @@ function renderMainMenu() {
   // 保存图标位置
   mainMenuState.iconY = iconY;
   
+  // 确保阴影关闭
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  
   // 游戏标题 - 从胶囊下方开始
   const titleY = capsuleBottom + 80;
   ctx.font = `${70 * scale}px sans-serif`;
