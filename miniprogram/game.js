@@ -542,6 +542,9 @@ function checkShopperItems(shopper) {
   return true;
 }
 
+// 购物动画状态
+let shopperAnimations = [];
+
 // 完成购物者订单
 function fulfillShopper(shopper) {
   if (!checkShopperItems(shopper)) {
@@ -549,15 +552,91 @@ function fulfillShopper(shopper) {
     return false;
   }
   
-  // 移除物品
+  // 找到购物者卡片位置
+  const shopperCard = mergeState.shopperCards?.find(c => c.shopper.id === shopper.id);
+  const targetPos = shopperCard ? { 
+    x: shopperCard.x + shopperCard.w / 2, 
+    y: shopperCard.y + shopperCard.h / 2 
+  } : { x: GameConfig.WIDTH / 2, y: 150 };
+  
+  // 收集要移除的物品并创建飞行动画
+  const itemsToRemove = [];
   for (const want of shopper.wants) {
     let remaining = want.count;
     for (let i = mergeState.items.length - 1; i >= 0 && remaining > 0; i--) {
       if (mergeState.items[i].config.key === want.key) {
-        mergeState.items.splice(i, 1);
+        const item = mergeState.items[i];
+        const itemPos = getMergeCellCenter(item.x, item.y);
+        
+        // 创建物品飞向购物者的动画
+        shopperAnimations.push({
+          type: 'item_fly',
+          emoji: item.config.emoji,
+          startX: itemPos.x,
+          startY: itemPos.y,
+          targetX: targetPos.x,
+          targetY: targetPos.y,
+          progress: 0,
+          duration: 0.35,
+          delay: itemsToRemove.length * 0.08, // 依次飞出
+        });
+        
+        itemsToRemove.push(i);
         remaining--;
       }
     }
+  }
+  
+  // 移除物品
+  itemsToRemove.sort((a, b) => b - a); // 从后往前删
+  for (const idx of itemsToRemove) {
+    mergeState.items.splice(idx, 1);
+  }
+  
+  // 延迟显示奖励动画
+  const totalDelay = itemsToRemove.length * 0.08 + 0.35;
+  
+  // 购物者开心动画
+  shopperAnimations.push({
+    type: 'shopper_happy',
+    emoji: shopper.emoji,
+    x: targetPos.x,
+    y: targetPos.y,
+    progress: 0,
+    duration: 0.6,
+    delay: totalDelay,
+  });
+  
+  // 金币飞出动画
+  if (shopper.reward.coin > 0) {
+    for (let i = 0; i < Math.min(5, Math.ceil(shopper.reward.coin / 30)); i++) {
+      shopperAnimations.push({
+        type: 'reward_fly',
+        emoji: '💰',
+        startX: targetPos.x,
+        startY: targetPos.y,
+        targetX: 160, // 金币显示位置
+        targetY: 70,
+        progress: 0,
+        duration: 0.5,
+        delay: totalDelay + 0.1 + i * 0.06,
+      });
+    }
+  }
+  
+  // 钻石飞出动画
+  if (shopper.reward.diamond > 0) {
+    shopperAnimations.push({
+      type: 'reward_fly',
+      emoji: '💎',
+      startX: targetPos.x,
+      startY: targetPos.y,
+      targetX: GameConfig.WIDTH - 60,
+      targetY: 70,
+      progress: 0,
+      duration: 0.5,
+      delay: totalDelay + 0.3,
+    });
   }
   
   // 发放奖励
@@ -568,12 +647,13 @@ function fulfillShopper(shopper) {
     SaveManager.addResources({ diamond: shopper.reward.diamond });
   }
   
-  // 移除购物者
-  const idx = mergeState.shoppers.findIndex(s => s.id === shopper.id);
-  if (idx >= 0) mergeState.shoppers.splice(idx, 1);
-  
-  // 立即补充新购物者
-  mergeState.shoppers.push(generateShopper());
+  // 延迟移除购物者并补充新的
+  setTimeout(() => {
+    const idx = mergeState.shoppers.findIndex(s => s.id === shopper.id);
+    if (idx >= 0) mergeState.shoppers.splice(idx, 1);
+    mergeState.shoppers.push(generateShopper());
+    saveShoppers();
+  }, (totalDelay + 0.5) * 1000);
   
   showInfo(`🎉 ${shopper.emoji} ${shopper.name}满意地离开了！+💰${shopper.reward.coin}${shopper.reward.diamond > 0 ? ` +💎${shopper.reward.diamond}` : ''}`);
   
@@ -581,8 +661,106 @@ function fulfillShopper(shopper) {
   updateDailyTaskProgress('shopper', 1);
   
   saveMergeGame();
-  saveShoppers();
   return true;
+}
+
+// 更新购物动画
+function updateShopperAnimations(dt) {
+  for (let i = shopperAnimations.length - 1; i >= 0; i--) {
+    const anim = shopperAnimations[i];
+    
+    // 处理延迟
+    if (anim.delay > 0) {
+      anim.delay -= dt;
+      continue;
+    }
+    
+    anim.progress += dt / anim.duration;
+    
+    if (anim.progress >= 1) {
+      // 动画完成时的特效
+      if (anim.type === 'item_fly') {
+        // 物品到达时的小星星
+        for (let j = 0; j < 3; j++) {
+          effects.push({
+            x: anim.targetX, y: anim.targetY,
+            vx: (Math.random() - 0.5) * 4,
+            vy: (Math.random() - 0.5) * 4,
+            life: 0.5, emoji: '✨',
+          });
+        }
+      }
+      shopperAnimations.splice(i, 1);
+    }
+  }
+}
+
+// 绘制购物动画
+function drawShopperAnimations() {
+  for (const anim of shopperAnimations) {
+    if (anim.delay > 0) continue;
+    
+    const t = Math.min(1, anim.progress);
+    const easeT = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    
+    if (anim.type === 'item_fly') {
+      // 物品飞向购物者
+      const x = anim.startX + (anim.targetX - anim.startX) * easeT;
+      const baseY = anim.startY + (anim.targetY - anim.startY) * easeT;
+      const arcY = -60 * 4 * t * (1 - t); // 抛物线
+      const y = baseY + arcY;
+      
+      // 缩小效果
+      const itemScale = 1 - t * 0.5;
+      
+      ctx.font = `${30 * itemScale * scale}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.globalAlpha = 1 - t * 0.3;
+      ctx.fillText(anim.emoji, x * scale, y * scale);
+      ctx.globalAlpha = 1;
+      
+    } else if (anim.type === 'shopper_happy') {
+      // 购物者开心跳跃
+      const bounce = Math.sin(t * Math.PI * 3) * (1 - t) * 20;
+      const happyScale = 1 + Math.sin(t * Math.PI) * 0.3;
+      
+      ctx.font = `${40 * happyScale * scale}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(anim.emoji, anim.x * scale, (anim.y - bounce) * scale);
+      
+      // 爱心/星星环绕
+      if (t < 0.8) {
+        const emojis = ['❤️', '⭐', '💕', '✨'];
+        for (let j = 0; j < 4; j++) {
+          const angle = (t * Math.PI * 4) + (j * Math.PI / 2);
+          const radius = 30 + t * 20;
+          const ex = anim.x + Math.cos(angle) * radius;
+          const ey = anim.y + Math.sin(angle) * radius - bounce;
+          ctx.font = `${16 * scale}px sans-serif`;
+          ctx.globalAlpha = 1 - t;
+          ctx.fillText(emojis[j], ex * scale, ey * scale);
+        }
+        ctx.globalAlpha = 1;
+      }
+      
+    } else if (anim.type === 'reward_fly') {
+      // 奖励飞向资源栏
+      const x = anim.startX + (anim.targetX - anim.startX) * easeT;
+      const baseY = anim.startY + (anim.targetY - anim.startY) * easeT;
+      const arcY = -80 * 4 * t * (1 - t);
+      const y = baseY + arcY;
+      
+      // 旋转闪烁
+      const rewardScale = 1 + Math.sin(t * Math.PI * 4) * 0.2;
+      
+      ctx.font = `${28 * rewardScale * scale}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(anim.emoji, x * scale, y * scale);
+    }
+  }
 }
 
 // 保存购物者
@@ -977,6 +1155,8 @@ function renderMergeScene() {
   drawMergeItems();
   // 飞行物品
   drawFlyingItems();
+  // 购物动画
+  drawShopperAnimations();
   // 特效
   drawEffects();
   // 底部UI
@@ -3491,6 +3671,9 @@ function render() {
 function updateAnimations(dt) {
   // 更新飞行物品
   updateFlyingItems(dt);
+  
+  // 更新购物动画
+  updateShopperAnimations(dt);
   
   // 更新物品缩放动画
   for (const item of mergeState.items) {
