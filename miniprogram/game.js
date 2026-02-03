@@ -2715,14 +2715,12 @@ function handleLevelSelectTouch(x, y) {
     capsuleBottom = capsule.bottom + 15;
   } catch (e) {}
   
-  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
   const startY = capsuleBottom + 80;
-  const endY = GameConfig.HEIGHT - safeBottom - 80;
   const cols = 4;
   const totalLevels = MATCH3_LEVELS.length;
   const btnRadius = 26;
   const spacingX = (GameConfig.WIDTH - 60) / (cols - 1);
-  const spacingY = Math.min(85, (endY - startY) / Math.min(Math.ceil(totalLevels / cols), 6));
+  const spacingY = 75;  // 固定间距
   const startX = 30 + btnRadius;
   
   for (let i = 0; i < totalLevels; i++) {
@@ -2774,17 +2772,12 @@ function renderLevelSelectScene() {
   ctx.fillText(`已解锁 ${SaveManager.data.highestLevel}/${MATCH3_LEVELS.length} 关`, W / 2 * scale, (capsuleBottom + 30) * scale);
   
   // 关卡按钮
-  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
   const startY = capsuleBottom + 80;
-  const endY = H - safeBottom - 80;
-  const cols = 4;  // 每行4个，更宽敞
+  const cols = 4;
   const totalLevels = MATCH3_LEVELS.length;
-  const totalRows = Math.ceil(totalLevels / cols);
-  
-  // 计算合适的间距
   const btnRadius = 26;
   const spacingX = (W - 60) / (cols - 1);
-  const spacingY = Math.min(85, (endY - startY) / Math.min(totalRows, 6));
+  const spacingY = 75;  // 固定间距
   const startX = 30 + btnRadius;
   
   for (let i = 0; i < totalLevels; i++) {
@@ -2793,9 +2786,6 @@ function renderLevelSelectScene() {
     const row = Math.floor(i / cols);
     const x = startX + col * spacingX;
     const y = startY + row * spacingY;
-    
-    // 超出屏幕的不绘制（需要滚动功能，暂时只显示前几行）
-    if (y > endY + 50) continue;
     
     const unlocked = level <= SaveManager.data.highestLevel;
     const stars = SaveManager.data.levelStars[level] || 0;
@@ -2843,6 +2833,7 @@ function renderLevelSelectScene() {
   }
   
   // 返回按钮
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
   const bottomY = H - Math.max(safeBottom, 15) - 45;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
