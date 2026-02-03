@@ -851,6 +851,32 @@ function drawMergeItems() {
 // ===================
 // 三消场景 (简化版)
 // ===================
+// ===================
+// 消消乐关卡配置
+// ===================
+const MATCH3_LEVELS = [
+  { level: 1, moves: 25, target: { score: 800 }, stars: [800, 1200, 1600], reward: { coin: 50 } },
+  { level: 2, moves: 25, target: { score: 1000 }, stars: [1000, 1500, 2000], reward: { coin: 60 } },
+  { level: 3, moves: 22, target: { score: 1200 }, stars: [1200, 1800, 2400], reward: { coin: 70 } },
+  { level: 4, moves: 22, target: { score: 1400 }, stars: [1400, 2100, 2800], reward: { coin: 80 } },
+  { level: 5, moves: 20, target: { score: 1600 }, stars: [1600, 2400, 3200], reward: { coin: 100, diamond: 1 } },
+  { level: 6, moves: 20, target: { score: 1800 }, stars: [1800, 2700, 3600], reward: { coin: 100 } },
+  { level: 7, moves: 20, target: { score: 2000 }, stars: [2000, 3000, 4000], reward: { coin: 110 } },
+  { level: 8, moves: 18, target: { score: 2200 }, stars: [2200, 3300, 4400], reward: { coin: 120 } },
+  { level: 9, moves: 18, target: { score: 2400 }, stars: [2400, 3600, 4800], reward: { coin: 130 } },
+  { level: 10, moves: 18, target: { score: 2600 }, stars: [2600, 3900, 5200], reward: { coin: 150, diamond: 2 } },
+  { level: 11, moves: 16, target: { score: 2800 }, stars: [2800, 4200, 5600], reward: { coin: 150 } },
+  { level: 12, moves: 16, target: { score: 3000 }, stars: [3000, 4500, 6000], reward: { coin: 160 } },
+  { level: 13, moves: 16, target: { score: 3200 }, stars: [3200, 4800, 6400], reward: { coin: 170 } },
+  { level: 14, moves: 15, target: { score: 3400 }, stars: [3400, 5100, 6800], reward: { coin: 180 } },
+  { level: 15, moves: 15, target: { score: 3600 }, stars: [3600, 5400, 7200], reward: { coin: 200, diamond: 3 } },
+  { level: 16, moves: 15, target: { score: 3800 }, stars: [3800, 5700, 7600], reward: { coin: 200 } },
+  { level: 17, moves: 14, target: { score: 4000 }, stars: [4000, 6000, 8000], reward: { coin: 220 } },
+  { level: 18, moves: 14, target: { score: 4200 }, stars: [4200, 6300, 8400], reward: { coin: 240 } },
+  { level: 19, moves: 14, target: { score: 4400 }, stars: [4400, 6600, 8800], reward: { coin: 260 } },
+  { level: 20, moves: 12, target: { score: 5000 }, stars: [5000, 7500, 10000], reward: { coin: 500, diamond: 10 } },
+];
+
 let match3State = {
   board: [],
   selectedTile: null,
@@ -858,18 +884,38 @@ let match3State = {
   moves: 20,
   targetScore: 1000,
   level: 1,
+  levelConfig: null,
   isProcessing: false,
+  gameOver: false,
+  won: false,
+  stars: 0,
+  showResult: false,
 };
 
-const MATCH3_GRID = { cols: 8, rows: 8, tileSize: 80, offsetX: 40, offsetY: 300 };
+const MATCH3_GRID = { 
+  cols: 8, 
+  rows: 8, 
+  get tileSize() { return Math.floor((GameConfig.WIDTH - 20) / this.cols); },
+  get offsetX() { return (GameConfig.WIDTH - this.cols * this.tileSize) / 2; },
+  get offsetY() { 
+    let capsuleBottom = 80;
+    try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
+    return capsuleBottom + 130; 
+  }
+};
 
 function initMatch3Scene() {
   match3State.level = sceneData.level || 1;
+  match3State.levelConfig = MATCH3_LEVELS[match3State.level - 1] || MATCH3_LEVELS[0];
   match3State.score = 0;
-  match3State.moves = 20;
-  match3State.targetScore = 1000 + (match3State.level - 1) * 500;
+  match3State.moves = match3State.levelConfig.moves;
+  match3State.targetScore = match3State.levelConfig.target.score;
   match3State.selectedTile = null;
   match3State.isProcessing = false;
+  match3State.gameOver = false;
+  match3State.won = false;
+  match3State.stars = 0;
+  match3State.showResult = false;
   
   initMatch3Board();
 }
@@ -912,7 +958,39 @@ function getMatch3TileCenter(col, row) {
 }
 
 function handleMatch3Touch(x, y) {
-  if (match3State.isProcessing) return;
+  // 结算弹窗处理
+  if (match3State.showResult) {
+    const W = GameConfig.WIDTH;
+    const H = GameConfig.HEIGHT;
+    const centerX = W / 2;
+    const centerY = H / 2;
+    const popupH = 320;
+    const popupY = centerY - popupH / 2;
+    const btnY = popupY + 230;
+    const btnW = 100;
+    const btnH = 45;
+    
+    // 返回按钮
+    if (x >= centerX - btnW - 20 && x <= centerX - 20 && y >= btnY && y <= btnY + btnH) {
+      match3State.showResult = false;
+      switchScene('LevelSelect');
+      return;
+    }
+    
+    // 继续/重试按钮
+    if (x >= centerX + 20 && x <= centerX + btnW + 20 && y >= btnY && y <= btnY + btnH) {
+      match3State.showResult = false;
+      if (match3State.won && match3State.level < 20) {
+        switchScene('Match3', { level: match3State.level + 1 });
+      } else {
+        switchScene('Match3', { level: match3State.level });
+      }
+      return;
+    }
+    return; // 弹窗显示时不处理其他点击
+  }
+  
+  if (match3State.isProcessing || match3State.gameOver) return;
   
   const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
   const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
@@ -1062,40 +1140,112 @@ function fillBoard() {
 }
 
 function checkGameEnd() {
+  if (match3State.gameOver) return;
+  
+  const config = match3State.levelConfig;
+  
   if (match3State.score >= match3State.targetScore) {
-    showInfo('🎉 过关！');
+    // 计算星级
+    let stars = 1;
+    if (match3State.score >= config.stars[1]) stars = 2;
+    if (match3State.score >= config.stars[2]) stars = 3;
+    
+    match3State.won = true;
+    match3State.gameOver = true;
+    match3State.stars = stars;
+    match3State.showResult = true;
+    
+    // 更新存档
+    const oldStars = SaveManager.data.levelStars[match3State.level] || 0;
+    if (stars > oldStars) {
+      SaveManager.data.levelStars[match3State.level] = stars;
+    }
     SaveManager.data.highestLevel = Math.max(SaveManager.data.highestLevel, match3State.level + 1);
+    
+    // 发放奖励
+    const reward = config.reward;
+    if (reward.coin) SaveManager.addResources({ coin: reward.coin });
+    if (reward.diamond) SaveManager.addResources({ diamond: reward.diamond });
+    
+    // 更新每日任务进度
+    updateDailyTaskProgress('match3', 1);
+    if (stars >= 3) updateDailyTaskProgress('star', 1);
+    
+    // 统计
+    SaveManager.data.statistics = SaveManager.data.statistics || {};
+    SaveManager.data.statistics.totalCoins = (SaveManager.data.statistics.totalCoins || 0) + (reward.coin || 0);
+    
     SaveManager.save();
+    
   } else if (match3State.moves <= 0) {
-    showInfo('😢 失败了，再试一次！');
+    match3State.won = false;
+    match3State.gameOver = true;
+    match3State.stars = 0;
+    match3State.showResult = true;
   }
 }
 
 function renderMatch3Scene() {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  
   // 背景
-  const gradient = ctx.createLinearGradient(0, 0, 0, GameConfig.HEIGHT * scale);
+  const gradient = ctx.createLinearGradient(0, 0, 0, H * scale);
   gradient.addColorStop(0, '#2c3e50');
   gradient.addColorStop(1, '#1a252f');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, GameConfig.WIDTH * scale, GameConfig.HEIGHT * scale);
+  ctx.fillRect(0, 0, W * scale, H * scale);
+  
+  // 安全区域
+  let capsuleBottom = 80;
+  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
   
   // 关卡信息
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${28 * scale}px sans-serif`;
+  ctx.font = `bold ${24 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText(`第 ${match3State.level} 关`, GameConfig.WIDTH / 2 * scale, 80 * scale);
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`第 ${match3State.level} 关`, W / 2 * scale, capsuleBottom * scale);
   
-  ctx.font = `${20 * scale}px sans-serif`;
-  ctx.fillStyle = '#4ecdc4';
-  ctx.fillText(`分数: ${match3State.score}`, (GameConfig.WIDTH / 2 - 100) * scale, 130 * scale);
-  ctx.fillStyle = '#ff6b6b';
-  ctx.fillText(`目标: ${match3State.targetScore}`, (GameConfig.WIDTH / 2 + 100) * scale, 130 * scale);
+  // 分数和目标
+  const infoY = capsuleBottom + 35;
+  ctx.font = `${14 * scale}px sans-serif`;
   
-  ctx.fillStyle = '#ffe66d';
-  ctx.font = `bold ${48 * scale}px sans-serif`;
-  ctx.fillText(match3State.moves.toString(), GameConfig.WIDTH / 2 * scale, 220 * scale);
-  ctx.font = `${20 * scale}px sans-serif`;
-  ctx.fillText('剩余步数', GameConfig.WIDTH / 2 * scale, 260 * scale);
+  // 分数进度条背景
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  roundRect(30 * scale, infoY * scale, (W - 60) * scale, 20 * scale, 10 * scale);
+  ctx.fill();
+  
+  // 分数进度条
+  const progressPct = Math.min(1, match3State.score / match3State.targetScore);
+  ctx.fillStyle = progressPct >= 1 ? '#4CAF50' : '#4ecdc4';
+  roundRect(30 * scale, infoY * scale, ((W - 60) * progressPct) * scale, 20 * scale, 10 * scale);
+  ctx.fill();
+  
+  // 星星标记
+  const config = match3State.levelConfig;
+  const barWidth = W - 60;
+  for (let i = 0; i < 3; i++) {
+    const starPct = config.stars[i] / config.stars[2];
+    const starX = 30 + barWidth * (config.stars[i] / config.stars[2] * 0.9 + 0.1 * (i + 1) / 3);
+    ctx.font = `${14 * scale}px sans-serif`;
+    ctx.fillStyle = match3State.score >= config.stars[i] ? '#ffd700' : '#666';
+    ctx.fillText('⭐', Math.min(starX, W - 30) * scale, (infoY - 12) * scale);
+  }
+  
+  // 分数文字
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${12 * scale}px sans-serif`;
+  ctx.fillText(`${match3State.score} / ${match3State.targetScore}`, W / 2 * scale, (infoY + 10) * scale);
+  
+  // 剩余步数
+  const movesY = infoY + 50;
+  ctx.fillStyle = match3State.moves <= 5 ? '#ff6b6b' : '#ffe66d';
+  ctx.font = `bold ${36 * scale}px sans-serif`;
+  ctx.fillText(match3State.moves.toString(), W / 2 * scale, movesY * scale);
+  ctx.font = `${14 * scale}px sans-serif`;
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('剩余步数', W / 2 * scale, (movesY + 25) * scale);
   
   // 棋盘背景
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -1131,7 +1281,8 @@ function renderMatch3Scene() {
       ctx.fill();
       
       // Emoji
-      ctx.font = `${40 * scale}px sans-serif`;
+      const emojiSize = Math.floor(MATCH3_GRID.tileSize * 0.55);
+      ctx.font = `${emojiSize * scale}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(MATCH3_EMOJIS[tile.type], pos.x * scale, pos.y * scale);
@@ -1140,9 +1291,99 @@ function renderMatch3Scene() {
   
   // 特效
   drawEffects();
-  // 底部
-  drawBottomInfo();
-  drawBackButton();
+  
+  // 底部返回按钮
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const bottomY = H - Math.max(safeBottom, 15) - 45;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('← 返回', 55 * scale, (bottomY + 18) * scale);
+  
+  // 结算弹窗
+  if (match3State.showResult) {
+    renderMatch3Result();
+  }
+}
+
+function renderMatch3Result() {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  const centerX = W / 2;
+  const centerY = H / 2;
+  
+  // 遮罩
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W * scale, H * scale);
+  
+  // 弹窗背景
+  const popupW = W - 60;
+  const popupH = 320;
+  const popupX = 30;
+  const popupY = centerY - popupH / 2;
+  
+  ctx.fillStyle = match3State.won ? '#4ecdc4' : '#ff6b6b';
+  roundRect(popupX * scale, popupY * scale, popupW * scale, popupH * scale, 20 * scale);
+  ctx.fill();
+  
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  roundRect((popupX + 5) * scale, (popupY + 5) * scale, (popupW - 10) * scale, (popupH - 10) * scale, 15 * scale);
+  ctx.fill();
+  
+  // 标题
+  ctx.fillStyle = '#333';
+  ctx.font = `bold ${28 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(match3State.won ? '🎉 恭喜过关！' : '😢 挑战失败', centerX * scale, (popupY + 50) * scale);
+  
+  // 星星
+  if (match3State.won) {
+    ctx.font = `${40 * scale}px sans-serif`;
+    const starY = popupY + 100;
+    for (let i = 0; i < 3; i++) {
+      ctx.fillText(i < match3State.stars ? '⭐' : '☆', (centerX - 50 + i * 50) * scale, starY * scale);
+    }
+  }
+  
+  // 分数
+  ctx.fillStyle = '#666';
+  ctx.font = `${18 * scale}px sans-serif`;
+  ctx.fillText(`得分: ${match3State.score}`, centerX * scale, (popupY + 150) * scale);
+  
+  // 奖励
+  if (match3State.won) {
+    const reward = match3State.levelConfig.reward;
+    let rewardText = '奖励: ';
+    if (reward.coin) rewardText += `💰${reward.coin} `;
+    if (reward.diamond) rewardText += `💎${reward.diamond}`;
+    ctx.fillStyle = '#f5a623';
+    ctx.font = `bold ${16 * scale}px sans-serif`;
+    ctx.fillText(rewardText, centerX * scale, (popupY + 180) * scale);
+  }
+  
+  // 按钮
+  const btnY = popupY + 230;
+  const btnW = 100;
+  const btnH = 45;
+  
+  // 返回按钮
+  ctx.fillStyle = '#999';
+  roundRect((centerX - btnW - 20) * scale, btnY * scale, btnW * scale, btnH * scale, 10 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${16 * scale}px sans-serif`;
+  ctx.fillText('返回', (centerX - btnW / 2 - 20) * scale, (btnY + btnH / 2) * scale);
+  
+  // 继续/重试按钮
+  ctx.fillStyle = match3State.won ? '#4CAF50' : '#ff6b6b';
+  roundRect((centerX + 20) * scale, btnY * scale, btnW * scale, btnH * scale, 10 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(match3State.won ? '下一关' : '重试', (centerX + btnW / 2 + 20) * scale, (btnY + btnH / 2) * scale);
 }
 
 // ===================
