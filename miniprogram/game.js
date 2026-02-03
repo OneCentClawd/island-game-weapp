@@ -2601,33 +2601,58 @@ let islandState = {
     { id: 'tree1', type: 'tree', x: 0.25, y: 0.35, emoji: '🌴', name: '椰子树' },
     { id: 'tree2', type: 'tree', x: 0.75, y: 0.55, emoji: '🌳', name: '大树' },
   ],
-  decorations: [], // 可放置的装饰
+  decorations: [], // 已放置的装饰
+  ownedDecorations: [], // 已购买的装饰id
+  ownedAccessories: [], // 已购买的配饰id
   weather: 'sunny', // sunny, cloudy, rainy
   timeOfDay: 'day', // day, evening, night
   lastUpdate: Date.now(),
-  particles: [], // 环境粒子（蝴蝶、落叶等）
+  particles: [], // 环境粒子
+  showShop: false, // 是否显示商店
+  shopTab: 'decor', // decor / accessory
+  placingItem: null, // 正在放置的装饰
+  lastGiftTime: 0, // 上次小狗送礼时间
 };
 
-// 可解锁的建筑/装饰
-const ISLAND_BUILDINGS = [
-  { id: 'flower1', emoji: '🌸', name: '樱花', cost: { coin: 100 } },
-  { id: 'flower2', emoji: '🌻', name: '向日葵', cost: { coin: 100 } },
-  { id: 'flower3', emoji: '🌷', name: '郁金香', cost: { coin: 150 } },
-  { id: 'pond', emoji: '🪷', name: '荷花池', cost: { coin: 500 } },
-  { id: 'fountain', emoji: '⛲', name: '喷泉', cost: { coin: 800 } },
-  { id: 'swing', emoji: '🎠', name: '秋千', cost: { coin: 600 } },
-  { id: 'bench', emoji: '🪑', name: '长椅', cost: { coin: 300 } },
-  { id: 'lamp', emoji: '🏮', name: '灯笼', cost: { coin: 200 } },
-  { id: 'statue', emoji: '🗿', name: '雕像', cost: { coin: 1000, diamond: 5 } },
-  { id: 'gazebo', emoji: '⛺', name: '凉亭', cost: { coin: 1500, diamond: 10 } },
+// 可购买的装饰
+const ISLAND_DECORATIONS = [
+  { id: 'flower1', emoji: '🌸', name: '樱花', cost: { coin: 100 }, desc: '粉粉的樱花~' },
+  { id: 'flower2', emoji: '🌻', name: '向日葵', cost: { coin: 100 }, desc: '向着太阳！' },
+  { id: 'flower3', emoji: '🌷', name: '郁金香', cost: { coin: 150 }, desc: '优雅的花朵' },
+  { id: 'flower4', emoji: '🌹', name: '玫瑰', cost: { coin: 200 }, desc: '爱的象征' },
+  { id: 'mushroom', emoji: '🍄', name: '蘑菇', cost: { coin: 80 }, desc: '可爱的小蘑菇' },
+  { id: 'cactus', emoji: '🌵', name: '仙人掌', cost: { coin: 120 }, desc: '耐旱小可爱' },
+  { id: 'pond', emoji: '🪷', name: '荷花池', cost: { coin: 500 }, desc: '清凉的池塘' },
+  { id: 'fountain', emoji: '⛲', name: '喷泉', cost: { coin: 800 }, desc: '哗啦啦~' },
+  { id: 'bench', emoji: '🪑', name: '长椅', cost: { coin: 300 }, desc: '休息一下' },
+  { id: 'lamp', emoji: '🏮', name: '灯笼', cost: { coin: 200 }, desc: '夜晚会亮哦' },
+  { id: 'rock', emoji: '🪨', name: '石头', cost: { coin: 50 }, desc: '朴实的石头' },
+  { id: 'wood', emoji: '🪵', name: '木桩', cost: { coin: 60 }, desc: '可以坐' },
+  { id: 'tent', emoji: '⛺', name: '帐篷', cost: { coin: 600 }, desc: '露营风' },
+  { id: 'statue', emoji: '🗿', name: '雕像', cost: { coin: 1000, diamond: 5 }, desc: '神秘石像' },
+  { id: 'gnome', emoji: '🧙', name: '小矮人', cost: { coin: 400 }, desc: '花园守护者' },
+  { id: 'butterfly', emoji: '🦋', name: '蝴蝶花丛', cost: { coin: 350 }, desc: '蝴蝶会飞哦' },
 ];
 
 // 小狗配饰
 const PUPPY_ACCESSORIES = [
-  { id: 'bow', emoji: '🎀', name: '蝴蝶结', cost: { coin: 200 } },
-  { id: 'crown', emoji: '👑', name: '小皇冠', cost: { diamond: 10 } },
-  { id: 'glasses', emoji: '🕶️', name: '墨镜', cost: { coin: 300 } },
-  { id: 'scarf', emoji: '🧣', name: '围巾', cost: { coin: 250 } },
+  { id: 'bow', emoji: '🎀', name: '蝴蝶结', cost: { coin: 200 }, desc: '可爱必备！', pos: { x: 15, y: -25 } },
+  { id: 'crown', emoji: '👑', name: '小皇冠', cost: { diamond: 10 }, desc: '小狗也是王！', pos: { x: 0, y: -30 } },
+  { id: 'glasses', emoji: '🕶️', name: '墨镜', cost: { coin: 300 }, desc: '酷酷的~', pos: { x: 0, y: -5 } },
+  { id: 'scarf', emoji: '🧣', name: '围巾', cost: { coin: 250 }, desc: '暖暖的', pos: { x: 20, y: 10 } },
+  { id: 'hat', emoji: '🎩', name: '礼帽', cost: { coin: 350 }, desc: '绅士风度', pos: { x: 0, y: -32 } },
+  { id: 'flower_acc', emoji: '🌺', name: '花朵发饰', cost: { coin: 180 }, desc: '花仙子', pos: { x: 18, y: -22 } },
+  { id: 'bell', emoji: '🔔', name: '铃铛项圈', cost: { coin: 150 }, desc: '叮铃铃~', pos: { x: 0, y: 15 } },
+  { id: 'heart', emoji: '💝', name: '爱心项链', cost: { diamond: 5 }, desc: '满满的爱', pos: { x: 0, y: 12 } },
+];
+
+// 小狗送礼物（高好感度时随机触发）
+const PUPPY_GIFTS = [
+  { emoji: '💎', name: '钻石', give: { diamond: 1 }, msg: '小狗挖到了一颗钻石！' },
+  { emoji: '💰', name: '金币袋', give: { coin: 50 }, msg: '小狗找到了金币！' },
+  { emoji: '⭐', name: '幸运星', give: { coin: 30 }, msg: '小狗捡到了星星！' },
+  { emoji: '🍀', name: '四叶草', give: { coin: 20 }, msg: '小狗发现了四叶草！' },
+  { emoji: '🦴', name: '骨头', give: { coin: 10 }, msg: '小狗叼来了骨头~' },
 ];
 
 function initIslandScene() {
@@ -2641,7 +2666,19 @@ function initIslandScene() {
   if (SaveManager.data.islandDecorations) {
     islandState.decorations = SaveManager.data.islandDecorations;
   }
+  if (SaveManager.data.ownedDecorations) {
+    islandState.ownedDecorations = SaveManager.data.ownedDecorations;
+  }
+  if (SaveManager.data.ownedAccessories) {
+    islandState.ownedAccessories = SaveManager.data.ownedAccessories;
+  }
+  if (SaveManager.data.lastGiftTime) {
+    islandState.lastGiftTime = SaveManager.data.lastGiftTime;
+  }
+  
   islandState.lastUpdate = Date.now();
+  islandState.showShop = false;
+  islandState.placingItem = null;
   
   // 根据时间设置天气
   const hour = new Date().getHours();
@@ -2703,6 +2740,14 @@ function updatePuppy() {
     puppy.state = 'idle';
   }
   
+  // 小狗送礼（好感度>=50时，每10分钟有机会送礼）
+  if (puppy.love >= 50 && now - islandState.lastGiftTime > 600000) {
+    const giftChance = Math.min(0.001, (puppy.love - 50) / 10000);
+    if (Math.random() < giftChance) {
+      triggerPuppyGift();
+    }
+  }
+  
   // 更新环境粒子
   updateIslandParticles(dt);
   
@@ -2714,6 +2759,33 @@ function updatePuppy() {
     showInfo(`🎉 小狗升到 ${puppy.level} 级啦！`);
     createIslandCelebration();
   }
+}
+
+// 小狗送礼
+function triggerPuppyGift() {
+  const gift = PUPPY_GIFTS[Math.floor(Math.random() * PUPPY_GIFTS.length)];
+  
+  // 发放奖励
+  if (gift.give.coin) SaveManager.addCoins(gift.give.coin);
+  if (gift.give.diamond) SaveManager.addResources({ diamond: gift.give.diamond });
+  
+  // 礼物飞出动画
+  islandState.particles.push({
+    type: 'gift',
+    emoji: gift.emoji,
+    x: islandState.puppy.x,
+    y: islandState.puppy.y - 0.1,
+    vx: 0,
+    vy: -0.03,
+    life: 3,
+  });
+  
+  islandState.lastGiftTime = Date.now();
+  SaveManager.data.lastGiftTime = islandState.lastGiftTime;
+  SaveManager.save();
+  
+  showInfo(`🐕 ${gift.msg}`);
+  createIslandCelebration();
 }
 
 function updateIslandParticles(dt) {
@@ -2865,7 +2937,98 @@ function savePuppyState() {
   SaveManager.data.puppy = { ...islandState.puppy };
   SaveManager.data.islandBuildings = islandState.buildings;
   SaveManager.data.islandDecorations = islandState.decorations;
+  SaveManager.data.ownedDecorations = islandState.ownedDecorations;
+  SaveManager.data.ownedAccessories = islandState.ownedAccessories;
   SaveManager.save();
+}
+
+// 购买装饰
+function buyDecoration(item) {
+  const res = SaveManager.getResources();
+  const cost = item.cost;
+  
+  if ((cost.coin && res.coin < cost.coin) || (cost.diamond && res.diamond < cost.diamond)) {
+    showInfo('💰 资源不足！');
+    return false;
+  }
+  
+  // 扣除资源
+  if (cost.coin) SaveManager.addResources({ coin: -cost.coin });
+  if (cost.diamond) SaveManager.addResources({ diamond: -cost.diamond });
+  
+  // 添加到已拥有列表
+  islandState.ownedDecorations.push(item.id);
+  
+  // 进入放置模式
+  islandState.placingItem = { ...item, type: 'decoration' };
+  islandState.showShop = false;
+  
+  showInfo(`✅ 购买成功！点击小岛放置 ${item.emoji}`);
+  savePuppyState();
+  return true;
+}
+
+// 购买配饰
+function buyAccessory(item) {
+  const res = SaveManager.getResources();
+  const cost = item.cost;
+  
+  if ((cost.coin && res.coin < cost.coin) || (cost.diamond && res.diamond < cost.diamond)) {
+    showInfo('💰 资源不足！');
+    return false;
+  }
+  
+  // 扣除资源
+  if (cost.coin) SaveManager.addResources({ coin: -cost.coin });
+  if (cost.diamond) SaveManager.addResources({ diamond: -cost.diamond });
+  
+  // 添加到已拥有列表并立即装备
+  islandState.ownedAccessories.push(item.id);
+  islandState.puppy.accessory = item.id;
+  islandState.showShop = false;
+  
+  showInfo(`✅ 购买成功！小狗戴上了 ${item.emoji}${item.name}`);
+  savePuppyState();
+  return true;
+}
+
+// 放置装饰
+function placeDecoration(relX, relY) {
+  const item = islandState.placingItem;
+  if (!item) return;
+  
+  // 限制在岛内
+  const dist = Math.sqrt((relX - 0.5) ** 2 + (relY - 0.5) ** 2);
+  if (dist > 0.4) {
+    showInfo('⚠️ 只能放在小岛上哦~');
+    return;
+  }
+  
+  islandState.decorations.push({
+    id: item.id + '_' + Date.now(),
+    type: item.id,
+    emoji: item.emoji,
+    x: relX,
+    y: relY,
+  });
+  
+  islandState.placingItem = null;
+  showInfo(`${item.emoji} 放置成功！`);
+  savePuppyState();
+}
+
+// 切换配饰
+function equipAccessory(accId) {
+  if (accId === islandState.puppy.accessory) {
+    // 取消装备
+    islandState.puppy.accessory = null;
+    showInfo('🐕 小狗脱下了配饰');
+  } else {
+    islandState.puppy.accessory = accId;
+    const acc = PUPPY_ACCESSORIES.find(a => a.id === accId);
+    showInfo(`🐕 小狗戴上了 ${acc?.emoji || ''}${acc?.name || ''}`);
+  }
+  savePuppyState();
 }
 
 function getPuppyEmoji() {
@@ -2884,6 +3047,35 @@ function handleIslandTouch(x, y) {
   const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 55;
   const W = GameConfig.WIDTH;
   const H = GameConfig.HEIGHT;
+  const centerX = W / 2;
+  const centerY = H / 2 + 30;
+  
+  // 商店界面
+  if (islandState.showShop) {
+    handleShopTouch_Island(x, y);
+    return;
+  }
+  
+  // 放置模式
+  if (islandState.placingItem) {
+    // 取消按钮
+    if (x >= W - 90 && x <= W - 10 && y >= bottomY + 10 && y <= bottomY + 46) {
+      islandState.placingItem = null;
+      showInfo('❌ 取消放置');
+      return;
+    }
+    
+    // 计算相对位置
+    const relX = (x - centerX) / 300 + 0.5;
+    const relY = (y - centerY) / 250 + 0.5;
+    
+    if (relX >= 0.1 && relX <= 0.9 && relY >= 0.2 && relY <= 0.8) {
+      placeDecoration(relX, relY);
+    } else {
+      showInfo('⚠️ 请点击小岛区域放置');
+    }
+    return;
+  }
   
   // 返回按钮
   if (x >= 15 && x <= 95 && y >= bottomY + 10 && y <= bottomY + 46) {
@@ -2908,23 +3100,81 @@ function handleIslandTouch(x, y) {
     return;
   }
   
-  // 装饰按钮
+  // 装饰按钮 - 打开商店
   if (x >= 30 + btnWidth * 2 && x <= 30 + btnWidth * 3 && y >= btnY && y <= btnY + 40) {
-    showInfo('🏗️ 装饰功能开发中...');
+    islandState.showShop = true;
+    islandState.shopTab = 'decor';
     return;
   }
   
-  const centerX = W / 2;
-  const centerY = H / 2;
-  
   // 检测点击小狗
   const puppyScreenX = centerX + (islandState.puppy.x - 0.5) * 300;
-  const puppyScreenY = centerY + (islandState.puppy.y - 0.5) * 250 + 30;
+  const puppyScreenY = centerY + (islandState.puppy.y - 0.5) * 250;
   const puppyDist = Math.sqrt((x - puppyScreenX) ** 2 + (y - puppyScreenY) ** 2);
   
   if (puppyDist < 50) {
     petPuppy();
     return;
+  }
+}
+
+// 商店点击处理
+function handleShopTouch_Island(x, y) {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  
+  const shopX = 20;
+  const shopY = 120;
+  const shopW = W - 40;
+  const shopH = H - 200;
+  
+  // 关闭按钮
+  if (x >= shopX + shopW - 40 && x <= shopX + shopW && y >= shopY && y <= shopY + 40) {
+    islandState.showShop = false;
+    return;
+  }
+  
+  // Tab切换
+  const tabY = shopY + 45;
+  if (y >= tabY && y <= tabY + 35) {
+    if (x >= shopX + 10 && x <= shopX + shopW / 2 - 5) {
+      islandState.shopTab = 'decor';
+      return;
+    }
+    if (x >= shopX + shopW / 2 + 5 && x <= shopX + shopW - 10) {
+      islandState.shopTab = 'accessory';
+      return;
+    }
+  }
+  
+  // 商品列表区域
+  const listY = tabY + 45;
+  const itemH = 65;
+  const items = islandState.shopTab === 'decor' ? ISLAND_DECORATIONS : PUPPY_ACCESSORIES;
+  const ownedList = islandState.shopTab === 'decor' ? islandState.ownedDecorations : islandState.ownedAccessories;
+  
+  for (let i = 0; i < items.length; i++) {
+    const iy = listY + i * itemH;
+    if (iy > shopY + shopH - 60) break; // 超出范围
+    
+    if (y >= iy && y <= iy + itemH - 5) {
+      const item = items[i];
+      const owned = ownedList.includes(item.id);
+      
+      if (islandState.shopTab === 'accessory') {
+        if (owned) {
+          // 已拥有 - 切换装备
+          equipAccessory(item.id);
+        } else {
+          // 购买
+          buyAccessory(item);
+        }
+      } else {
+        // 装饰可重复购买
+        buyDecoration(item);
+      }
+      return;
+    }
   }
 }
 
@@ -3099,9 +3349,9 @@ function renderIslandScene() {
   // 小狗配饰
   if (puppy.accessory) {
     const acc = PUPPY_ACCESSORIES.find(a => a.id === puppy.accessory);
-    if (acc) {
-      ctx.font = `${20 * scale}px sans-serif`;
-      ctx.fillText(acc.emoji, (puppyX + 15) * scale, (puppyY - 20) * scale);
+    if (acc && acc.pos) {
+      ctx.font = `${22 * scale}px sans-serif`;
+      ctx.fillText(acc.emoji, (puppyX + acc.pos.x) * scale, (puppyY + acc.pos.y) * scale);
     }
   }
   
@@ -3226,15 +3476,160 @@ function renderIslandScene() {
   ctx.fillStyle = '#fff';
   ctx.fillText('🏗️ 装饰', (30 + btnWidth * 2.5) * scale, (btnY + 20) * scale);
   
-  // 返回按钮
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  roundRect(15 * scale, (bottomY + 10) * scale, 80 * scale, 36 * scale, 10 * scale);
+  // 返回按钮（普通模式）或取消按钮（放置模式）
+  if (islandState.placingItem) {
+    // 放置模式提示
+    ctx.fillStyle = 'rgba(255,193,7,0.95)';
+    roundRect(15 * scale, (bottomY + 10) * scale, (W - 30) * scale, 36 * scale, 10 * scale);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.font = `bold ${14 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`点击小岛放置 ${islandState.placingItem.emoji} | 右侧取消`, (W / 2) * scale, (bottomY + 28) * scale);
+    
+    // 取消按钮
+    ctx.fillStyle = 'rgba(244,67,54,0.9)';
+    roundRect((W - 90) * scale, (bottomY + 10) * scale, 80 * scale, 36 * scale, 10 * scale);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText('❌ 取消', (W - 50) * scale, (bottomY + 28) * scale);
+  } else {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    roundRect(15 * scale, (bottomY + 10) * scale, 80 * scale, 36 * scale, 10 * scale);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${14 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('← 返回', 55 * scale, (bottomY + 28) * scale);
+  }
+  
+  // 绘制商店界面
+  if (islandState.showShop) {
+    drawIslandShop();
+  }
+}
+
+// 绘制小岛商店
+function drawIslandShop() {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  
+  // 半透明背景
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W * scale, H * scale);
+  
+  const shopX = 20;
+  const shopY = 120;
+  const shopW = W - 40;
+  const shopH = H - 200;
+  
+  // 商店面板
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  roundRect(shopX * scale, shopY * scale, shopW * scale, shopH * scale, 15 * scale);
+  ctx.fill();
+  
+  // 标题
+  ctx.fillStyle = '#333';
+  ctx.font = `bold ${20 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('🏪 装饰商店', (W / 2) * scale, (shopY + 28) * scale);
+  
+  // 关闭按钮
+  ctx.fillStyle = '#f44336';
+  ctx.beginPath();
+  ctx.arc((shopX + shopW - 20) * scale, (shopY + 20) * scale, 15 * scale, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#fff';
+  ctx.font = `bold ${16 * scale}px sans-serif`;
+  ctx.fillText('×', (shopX + shopW - 20) * scale, (shopY + 25) * scale);
+  
+  // Tab按钮
+  const tabY = shopY + 45;
+  const isDecorTab = islandState.shopTab === 'decor';
+  
+  // 装饰Tab
+  ctx.fillStyle = isDecorTab ? '#9c27b0' : '#e0e0e0';
+  roundRect((shopX + 10) * scale, tabY * scale, (shopW / 2 - 15) * scale, 35 * scale, 8 * scale);
+  ctx.fill();
+  ctx.fillStyle = isDecorTab ? '#fff' : '#666';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.fillText('🌸 装饰物', (shopX + 10 + (shopW / 2 - 15) / 2) * scale, (tabY + 22) * scale);
+  
+  // 配饰Tab
+  ctx.fillStyle = !isDecorTab ? '#9c27b0' : '#e0e0e0';
+  roundRect((shopX + shopW / 2 + 5) * scale, tabY * scale, (shopW / 2 - 15) * scale, 35 * scale, 8 * scale);
+  ctx.fill();
+  ctx.fillStyle = !isDecorTab ? '#fff' : '#666';
+  ctx.fillText('👑 小狗配饰', (shopX + shopW / 2 + 5 + (shopW / 2 - 15) / 2) * scale, (tabY + 22) * scale);
+  
+  // 商品列表
+  const listY = tabY + 45;
+  const itemH = 65;
+  const items = isDecorTab ? ISLAND_DECORATIONS : PUPPY_ACCESSORIES;
+  const ownedList = isDecorTab ? islandState.ownedDecorations : islandState.ownedAccessories;
+  
+  ctx.textAlign = 'left';
+  
+  for (let i = 0; i < items.length; i++) {
+    const iy = listY + i * itemH;
+    if (iy + itemH > shopY + shopH - 20) break;
+    
+    const item = items[i];
+    const owned = ownedList.includes(item.id);
+    const equipped = !isDecorTab && islandState.puppy.accessory === item.id;
+    
+    // 商品背景
+    ctx.fillStyle = equipped ? 'rgba(156,39,176,0.2)' : (owned && !isDecorTab) ? 'rgba(76,175,80,0.1)' : 'rgba(0,0,0,0.05)';
+    roundRect((shopX + 10) * scale, iy * scale, (shopW - 20) * scale, (itemH - 5) * scale, 8 * scale);
+    ctx.fill();
+    
+    // Emoji
+    ctx.font = `${32 * scale}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(item.emoji, (shopX + 20) * scale, (iy + 38) * scale);
+    
+    // 名称和描述
+    ctx.fillStyle = '#333';
+    ctx.font = `bold ${14 * scale}px sans-serif`;
+    ctx.fillText(item.name, (shopX + 60) * scale, (iy + 22) * scale);
+    ctx.fillStyle = '#888';
+    ctx.font = `${11 * scale}px sans-serif`;
+    ctx.fillText(item.desc, (shopX + 60) * scale, (iy + 42) * scale);
+    
+    // 价格/状态
+    ctx.textAlign = 'right';
+    if (!isDecorTab && owned) {
+      if (equipped) {
+        ctx.fillStyle = '#9c27b0';
+        ctx.font = `bold ${12 * scale}px sans-serif`;
+        ctx.fillText('✓ 已装备', (shopX + shopW - 20) * scale, (iy + 32) * scale);
+      } else {
+        ctx.fillStyle = '#4CAF50';
+        ctx.font = `bold ${12 * scale}px sans-serif`;
+        ctx.fillText('点击装备', (shopX + shopW - 20) * scale, (iy + 32) * scale);
+      }
+    } else {
+      // 显示价格
+      let priceStr = '';
+      if (item.cost.coin) priceStr += `💰${item.cost.coin} `;
+      if (item.cost.diamond) priceStr += `💎${item.cost.diamond}`;
+      ctx.fillStyle = '#ff9800';
+      ctx.font = `bold ${13 * scale}px sans-serif`;
+      ctx.fillText(priceStr, (shopX + shopW - 20) * scale, (iy + 32) * scale);
+    }
+    
+    ctx.textAlign = 'left';
+  }
+  
+  // 资源显示
+  const res = SaveManager.getResources();
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  roundRect((shopX + 10) * scale, (shopY + shopH - 35) * scale, (shopW - 20) * scale, 30 * scale, 8 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#ffd700';
   ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('← 返回', 55 * scale, (bottomY + 28) * scale);
-}
+  ctx.fillText(`💰 ${res.coin}    💎 ${res.diamond}`, (W / 2) * scale, (shopY + shopH - 15) * scale);
 }
 
 // ===================
