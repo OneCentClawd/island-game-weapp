@@ -855,26 +855,30 @@ function drawMergeItems() {
 // 消消乐关卡配置
 // ===================
 const MATCH3_LEVELS = [
+  // 1-5关：入门，无障碍
   { level: 1, moves: 25, target: { score: 800 }, stars: [800, 1200, 1600], reward: { coin: 50 } },
   { level: 2, moves: 25, target: { score: 1000 }, stars: [1000, 1500, 2000], reward: { coin: 60 } },
   { level: 3, moves: 22, target: { score: 1200 }, stars: [1200, 1800, 2400], reward: { coin: 70 } },
   { level: 4, moves: 22, target: { score: 1400 }, stars: [1400, 2100, 2800], reward: { coin: 80 } },
   { level: 5, moves: 20, target: { score: 1600 }, stars: [1600, 2400, 3200], reward: { coin: 100, diamond: 1 } },
-  { level: 6, moves: 20, target: { score: 1800 }, stars: [1800, 2700, 3600], reward: { coin: 100 } },
-  { level: 7, moves: 20, target: { score: 2000 }, stars: [2000, 3000, 4000], reward: { coin: 110 } },
-  { level: 8, moves: 18, target: { score: 2200 }, stars: [2200, 3300, 4400], reward: { coin: 120 } },
-  { level: 9, moves: 18, target: { score: 2400 }, stars: [2400, 3600, 4800], reward: { coin: 130 } },
-  { level: 10, moves: 18, target: { score: 2600 }, stars: [2600, 3900, 5200], reward: { coin: 150, diamond: 2 } },
-  { level: 11, moves: 16, target: { score: 2800 }, stars: [2800, 4200, 5600], reward: { coin: 150 } },
-  { level: 12, moves: 16, target: { score: 3000 }, stars: [3000, 4500, 6000], reward: { coin: 160 } },
-  { level: 13, moves: 16, target: { score: 3200 }, stars: [3200, 4800, 6400], reward: { coin: 170 } },
-  { level: 14, moves: 15, target: { score: 3400 }, stars: [3400, 5100, 6800], reward: { coin: 180 } },
-  { level: 15, moves: 15, target: { score: 3600 }, stars: [3600, 5400, 7200], reward: { coin: 200, diamond: 3 } },
-  { level: 16, moves: 15, target: { score: 3800 }, stars: [3800, 5700, 7600], reward: { coin: 200 } },
-  { level: 17, moves: 14, target: { score: 4000 }, stars: [4000, 6000, 8000], reward: { coin: 220 } },
-  { level: 18, moves: 14, target: { score: 4200 }, stars: [4200, 6300, 8400], reward: { coin: 240 } },
-  { level: 19, moves: 14, target: { score: 4400 }, stars: [4400, 6600, 8800], reward: { coin: 260 } },
-  { level: 20, moves: 12, target: { score: 5000 }, stars: [5000, 7500, 10000], reward: { coin: 500, diamond: 10 } },
+  // 6-10关：引入冰块
+  { level: 6, moves: 22, target: { score: 1800, ice: 5 }, stars: [1800, 2700, 3600], reward: { coin: 100 }, obstacles: { ice: [[0,0],[0,7],[7,0],[7,7],[3,3]] } },
+  { level: 7, moves: 22, target: { score: 2000, ice: 8 }, stars: [2000, 3000, 4000], reward: { coin: 110 }, obstacles: { ice: [[1,1],[1,6],[6,1],[6,6],[2,3],[2,4],[5,3],[5,4]] } },
+  { level: 8, moves: 20, target: { score: 2200, ice: 10 }, stars: [2200, 3300, 4400], reward: { coin: 120 }, obstacles: { ice: [[0,2],[0,5],[2,0],[2,7],[5,0],[5,7],[7,2],[7,5],[3,3],[4,4]] } },
+  { level: 9, moves: 20, target: { score: 2400, ice: 12 }, stars: [2400, 3600, 4800], reward: { coin: 130 }, obstacles: { ice: [[1,2],[1,3],[1,4],[1,5],[6,2],[6,3],[6,4],[6,5],[3,1],[3,6],[4,1],[4,6]] } },
+  { level: 10, moves: 20, target: { score: 2600, ice: 10 }, stars: [2600, 3900, 5200], reward: { coin: 150, diamond: 2 }, obstacles: { ice: [[0,3],[0,4],[3,0],[3,7],[4,0],[4,7],[7,3],[7,4],[3,3],[4,4]] } },
+  // 11-15关：引入石头
+  { level: 11, moves: 20, target: { score: 2800, stone: 4 }, stars: [2800, 4200, 5600], reward: { coin: 150 }, obstacles: { stone: [[3,3],[3,4],[4,3],[4,4]] } },
+  { level: 12, moves: 20, target: { score: 3000, stone: 6, ice: 6 }, stars: [3000, 4500, 6000], reward: { coin: 160 }, obstacles: { stone: [[2,2],[2,5],[5,2],[5,5],[3,3],[4,4]], ice: [[1,1],[1,6],[6,1],[6,6],[0,3],[7,4]] } },
+  { level: 13, moves: 18, target: { score: 3200, stone: 8 }, stars: [3200, 4800, 6400], reward: { coin: 170 }, obstacles: { stone: [[2,2],[2,3],[2,4],[2,5],[5,2],[5,3],[5,4],[5,5]] } },
+  { level: 14, moves: 18, target: { score: 3400, stone: 6, ice: 8 }, stars: [3400, 5100, 6800], reward: { coin: 180 }, obstacles: { stone: [[3,2],[3,5],[4,2],[4,5],[3,3],[4,4]], ice: [[0,0],[0,7],[7,0],[7,7],[1,3],[1,4],[6,3],[6,4]] } },
+  { level: 15, moves: 18, target: { score: 3600, stone: 8, ice: 8 }, stars: [3600, 5400, 7200], reward: { coin: 200, diamond: 3 }, obstacles: { stone: [[2,2],[2,5],[5,2],[5,5],[3,3],[3,4],[4,3],[4,4]], ice: [[0,2],[0,5],[2,0],[2,7],[5,0],[5,7],[7,2],[7,5]] } },
+  // 16-20关：引入铁链
+  { level: 16, moves: 18, target: { score: 3800, chain: 6 }, stars: [3800, 5700, 7600], reward: { coin: 200 }, obstacles: { chain: [[2,2],[2,5],[5,2],[5,5],[3,3],[4,4]] } },
+  { level: 17, moves: 16, target: { score: 4000, chain: 8, ice: 6 }, stars: [4000, 6000, 8000], reward: { coin: 220 }, obstacles: { chain: [[1,1],[1,6],[6,1],[6,6],[3,2],[3,5],[4,2],[4,5]], ice: [[0,3],[0,4],[7,3],[7,4],[3,0],[4,7]] } },
+  { level: 18, moves: 16, target: { score: 4200, chain: 8, stone: 4 }, stars: [4200, 6300, 8400], reward: { coin: 240 }, obstacles: { chain: [[2,1],[2,6],[5,1],[5,6],[3,2],[3,5],[4,2],[4,5]], stone: [[3,3],[3,4],[4,3],[4,4]] } },
+  { level: 19, moves: 15, target: { score: 4400, chain: 10, ice: 8 }, stars: [4400, 6600, 8800], reward: { coin: 260 }, obstacles: { chain: [[1,2],[1,3],[1,4],[1,5],[6,2],[6,3],[6,4],[6,5],[3,1],[4,6]], ice: [[0,0],[0,7],[7,0],[7,7],[2,3],[2,4],[5,3],[5,4]] } },
+  { level: 20, moves: 15, target: { score: 5000, chain: 10, stone: 6, ice: 8 }, stars: [5000, 7500, 10000], reward: { coin: 500, diamond: 10 }, obstacles: { chain: [[1,1],[1,6],[6,1],[6,6],[2,3],[2,4],[5,3],[5,4],[3,2],[4,5]], stone: [[3,3],[3,4],[4,3],[4,4],[2,2],[5,5]], ice: [[0,2],[0,5],[2,0],[2,7],[5,0],[5,7],[7,2],[7,5]] } },
 ];
 
 let match3State = {
@@ -891,6 +895,10 @@ let match3State = {
   stars: 0,
   showResult: false,
   combo: 0,
+  // 障碍物计数
+  iceCleared: 0,
+  stoneCleared: 0,
+  chainCleared: 0,
 };
 
 const MATCH3_GRID = { 
@@ -917,20 +925,53 @@ function initMatch3Scene() {
   match3State.won = false;
   match3State.stars = 0;
   match3State.showResult = false;
+  match3State.combo = 0;
+  match3State.iceCleared = 0;
+  match3State.stoneCleared = 0;
+  match3State.chainCleared = 0;
   
   initMatch3Board();
 }
 
 function initMatch3Board() {
   match3State.board = [];
+  const config = match3State.levelConfig;
+  const obstacles = config.obstacles || {};
+  
+  // 创建障碍物位置集合
+  const iceSet = new Set((obstacles.ice || []).map(p => `${p[0]},${p[1]}`));
+  const stoneSet = new Set((obstacles.stone || []).map(p => `${p[0]},${p[1]}`));
+  const chainSet = new Set((obstacles.chain || []).map(p => `${p[0]},${p[1]}`));
+  
   for (let row = 0; row < MATCH3_GRID.rows; row++) {
     match3State.board[row] = [];
     for (let col = 0; col < MATCH3_GRID.cols; col++) {
+      const key = `${row},${col}`;
+      
+      // 石头格子：不能放方块
+      if (stoneSet.has(key)) {
+        match3State.board[row][col] = { type: 'stone', obstacle: 'stone', row, col, hp: 1 };
+        continue;
+      }
+      
       let type;
       do {
         type = MATCH3_ELEMENTS[Math.floor(Math.random() * MATCH3_ELEMENTS.length)];
       } while (wouldMatch(row, col, type));
-      match3State.board[row][col] = { type, row, col };
+      
+      const tile = { type, row, col };
+      
+      // 冰块覆盖
+      if (iceSet.has(key)) {
+        tile.ice = 1; // 冰层厚度
+      }
+      
+      // 铁链锁住
+      if (chainSet.has(key)) {
+        tile.chain = true;
+      }
+      
+      match3State.board[row][col] = tile;
     }
   }
 }
@@ -1128,13 +1169,14 @@ function findMatches() {
     let col = 0;
     while (col < MATCH3_GRID.cols) {
       const tile = match3State.board[row][col];
-      if (!tile || tile.type === 'rainbow') { col++; continue; }
+      // 跳过：空、彩虹、石头、被铁链锁住
+      if (!tile || tile.type === 'rainbow' || tile.obstacle === 'stone' || tile.chain) { col++; continue; }
       
       // 找连续相同的
       let count = 1;
       while (col + count < MATCH3_GRID.cols) {
         const next = match3State.board[row][col + count];
-        if (next && next.type === tile.type && !next.special) {
+        if (next && next.type === tile.type && !next.special && !next.chain && !next.obstacle) {
           count++;
         } else break;
       }
@@ -1155,12 +1197,12 @@ function findMatches() {
     let row = 0;
     while (row < MATCH3_GRID.rows) {
       const tile = match3State.board[row][col];
-      if (!tile || tile.type === 'rainbow') { row++; continue; }
+      if (!tile || tile.type === 'rainbow' || tile.obstacle === 'stone' || tile.chain) { row++; continue; }
       
       let count = 1;
       while (row + count < MATCH3_GRID.rows) {
         const next = match3State.board[row + count][col];
-        if (next && next.type === tile.type && !next.special) {
+        if (next && next.type === tile.type && !next.special && !next.chain && !next.obstacle) {
           count++;
         } else break;
       }
@@ -1228,12 +1270,59 @@ function processMatches(matches) {
     }
   });
   
+  // 处理相邻障碍物（石头、冰块、铁链）
+  const adjacentObstacles = new Set();
+  toRemove.forEach(key => {
+    const [row, col] = key.split(',').map(Number);
+    // 检查上下左右
+    [[row-1, col], [row+1, col], [row, col-1], [row, col+1]].forEach(([r, c]) => {
+      if (r >= 0 && r < MATCH3_GRID.rows && c >= 0 && c < MATCH3_GRID.cols) {
+        const adj = match3State.board[r][c];
+        if (adj && adj.obstacle === 'stone') {
+          adjacentObstacles.add(`${r},${c}`);
+        }
+      }
+    });
+  });
+  
+  // 处理石头
+  adjacentObstacles.forEach(key => {
+    const [row, col] = key.split(',').map(Number);
+    const tile = match3State.board[row][col];
+    if (tile && tile.obstacle === 'stone') {
+      tile.hp--;
+      if (tile.hp <= 0) {
+        match3State.board[row][col] = null;
+        match3State.stoneCleared++;
+        const pos = getMatch3TileCenter(col, row);
+        effects.push({ x: pos.x, y: pos.y, vx: 0, vy: 0, life: 1, emoji: '💨' });
+      }
+    }
+  });
+  
   // 移除方块并添加特效
   toRemove.forEach(key => {
     const [row, col] = key.split(',').map(Number);
     const tile = match3State.board[row][col];
-    if (tile) {
+    if (tile && tile.obstacle !== 'stone') {
       const pos = getMatch3TileCenter(col, row);
+      
+      // 处理冰块
+      if (tile.ice) {
+        tile.ice--;
+        match3State.iceCleared++;
+        effects.push({ x: pos.x, y: pos.y, vx: 0, vy: -1, life: 0.8, emoji: '❄️' });
+        if (tile.ice > 0) return; // 冰还没碎完，不消除方块
+      }
+      
+      // 处理铁链
+      if (tile.chain) {
+        delete tile.chain;
+        match3State.chainCleared++;
+        effects.push({ x: pos.x, y: pos.y, vx: 0, vy: -1, life: 0.8, emoji: '⛓️' });
+        return; // 铁链解开了，但方块保留
+      }
+      
       effects.push({ x: pos.x, y: pos.y, vx: (Math.random() - 0.5) * 3, vy: -3, life: 1, emoji: '✨' });
       match3State.board[row][col] = null;
     }
@@ -1307,11 +1396,27 @@ function dropTiles() {
   for (let col = 0; col < MATCH3_GRID.cols; col++) {
     let emptyRow = MATCH3_GRID.rows - 1;
     for (let row = MATCH3_GRID.rows - 1; row >= 0; row--) {
-      if (match3State.board[row][col]) {
+      const tile = match3State.board[row][col];
+      // 石头不动
+      if (tile && tile.obstacle === 'stone') {
+        continue;
+      }
+      if (tile) {
         if (row !== emptyRow) {
-          match3State.board[emptyRow][col] = match3State.board[row][col];
-          match3State.board[emptyRow][col].row = emptyRow;
-          match3State.board[row][col] = null;
+          // 检查下面是否有石头阻挡
+          let canDrop = true;
+          for (let r = row + 1; r <= emptyRow; r++) {
+            const below = match3State.board[r][col];
+            if (below && below.obstacle === 'stone') {
+              canDrop = false;
+              break;
+            }
+          }
+          if (canDrop) {
+            match3State.board[emptyRow][col] = tile;
+            tile.row = emptyRow;
+            match3State.board[row][col] = null;
+          }
         }
         emptyRow--;
       }
@@ -1322,10 +1427,12 @@ function dropTiles() {
 function fillBoard() {
   for (let col = 0; col < MATCH3_GRID.cols; col++) {
     for (let row = 0; row < MATCH3_GRID.rows; row++) {
-      if (!match3State.board[row][col]) {
-        const type = MATCH3_ELEMENTS[Math.floor(Math.random() * MATCH3_ELEMENTS.length)];
-        match3State.board[row][col] = { type, row, col };
-      }
+      const tile = match3State.board[row][col];
+      // 跳过石头和已有方块
+      if (tile) continue;
+      
+      const type = MATCH3_ELEMENTS[Math.floor(Math.random() * MATCH3_ELEMENTS.length)];
+      match3State.board[row][col] = { type, row, col };
     }
   }
 }
@@ -1335,7 +1442,15 @@ function checkGameEnd() {
   
   const config = match3State.levelConfig;
   
-  if (match3State.score >= match3State.targetScore) {
+  const target = config.target;
+  
+  // 检查所有目标是否完成
+  let allTargetsMet = match3State.score >= target.score;
+  if (target.ice && match3State.iceCleared < target.ice) allTargetsMet = false;
+  if (target.stone && match3State.stoneCleared < target.stone) allTargetsMet = false;
+  if (target.chain && match3State.chainCleared < target.chain) allTargetsMet = false;
+  
+  if (allTargetsMet) {
     // 计算星级
     let stars = 1;
     if (match3State.score >= config.stars[1]) stars = 2;
@@ -1438,6 +1553,28 @@ function renderMatch3Scene() {
   ctx.fillStyle = '#aaa';
   ctx.fillText('剩余步数', W / 2 * scale, (movesY + 25) * scale);
   
+  // 障碍物目标显示
+  const target = config.target;
+  let targetY = movesY + 50;
+  ctx.font = `${12 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  
+  const targets = [];
+  if (target.ice) targets.push({ emoji: '🧊', current: match3State.iceCleared, need: target.ice });
+  if (target.stone) targets.push({ emoji: '🪨', current: match3State.stoneCleared, need: target.stone });
+  if (target.chain) targets.push({ emoji: '⛓️', current: match3State.chainCleared, need: target.chain });
+  
+  if (targets.length > 0) {
+    const spacing = 70;
+    const startX = W / 2 - (targets.length - 1) * spacing / 2;
+    targets.forEach((t, i) => {
+      const tx = startX + i * spacing;
+      const done = t.current >= t.need;
+      ctx.fillStyle = done ? '#4CAF50' : '#fff';
+      ctx.fillText(`${t.emoji} ${t.current}/${t.need}`, tx * scale, targetY * scale);
+    });
+  }
+  
   // 棋盘背景
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   roundRect(
@@ -1485,6 +1622,18 @@ function renderMatch3Scene() {
       roundRect((pos.x - size/2) * scale, (pos.y - size/2) * scale, size * scale, size * scale, 10 * scale);
       ctx.fill();
       
+      // 石头障碍物
+      if (tile.obstacle === 'stone') {
+        ctx.fillStyle = '#666';
+        roundRect((pos.x - size/2) * scale, (pos.y - size/2) * scale, size * scale, size * scale, 10 * scale);
+        ctx.fill();
+        ctx.font = `${emojiSize * scale}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🪨', pos.x * scale, pos.y * scale);
+        continue;
+      }
+      
       // 特殊方块标记
       if (tile.special === 'stripe_h') {
         // 横条纹
@@ -1501,6 +1650,30 @@ function renderMatch3Scene() {
         ctx.beginPath();
         ctx.moveTo(pos.x * scale, (pos.y - size/2 + 5) * scale);
         ctx.lineTo(pos.x * scale, (pos.y + size/2 - 5) * scale);
+        ctx.stroke();
+      }
+      
+      // 冰层覆盖
+      if (tile.ice) {
+        ctx.fillStyle = 'rgba(135, 206, 250, 0.5)';
+        roundRect((pos.x - size/2) * scale, (pos.y - size/2) * scale, size * scale, size * scale, 10 * scale);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 2 * scale;
+        roundRect((pos.x - size/2) * scale, (pos.y - size/2) * scale, size * scale, size * scale, 10 * scale);
+        ctx.stroke();
+      }
+      
+      // 铁链覆盖
+      if (tile.chain) {
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 3 * scale;
+        // X形铁链
+        ctx.beginPath();
+        ctx.moveTo((pos.x - size/3) * scale, (pos.y - size/3) * scale);
+        ctx.lineTo((pos.x + size/3) * scale, (pos.y + size/3) * scale);
+        ctx.moveTo((pos.x + size/3) * scale, (pos.y - size/3) * scale);
+        ctx.lineTo((pos.x - size/3) * scale, (pos.y + size/3) * scale);
         ctx.stroke();
       }
       
