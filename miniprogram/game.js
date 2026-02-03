@@ -890,6 +890,7 @@ let match3State = {
   won: false,
   stars: 0,
   showResult: false,
+  combo: 0,
 };
 
 const MATCH3_GRID = { 
@@ -1038,11 +1039,75 @@ function swapTiles(tile1, tile2) {
   tile1.row = t2r; tile1.col = t2c;
   tile2.row = t1r; tile2.col = t1c;
   
+  // 特殊方块直接交换触发
+  if (tile1.special === 'rainbow' || tile2.special === 'rainbow') {
+    match3State.moves--;
+    match3State.selectedTile = null;
+    match3State.combo = 0;
+    
+    // 彩虹方块交换：消除对方类型的所有方块
+    const rainbow = tile1.special === 'rainbow' ? tile1 : tile2;
+    const other = tile1.special === 'rainbow' ? tile2 : tile1;
+    const toRemove = new Set();
+    
+    toRemove.add(`${rainbow.row},${rainbow.col}`);
+    
+    if (other.special === 'rainbow') {
+      // 两个彩虹：全场消除！
+      for (let r = 0; r < MATCH3_GRID.rows; r++) {
+        for (let c = 0; c < MATCH3_GRID.cols; c++) {
+          toRemove.add(`${r},${c}`);
+        }
+      }
+    } else {
+      // 消除所有同类型
+      for (let r = 0; r < MATCH3_GRID.rows; r++) {
+        for (let c = 0; c < MATCH3_GRID.cols; c++) {
+          const t = match3State.board[r][c];
+          if (t && t.type === other.type) {
+            toRemove.add(`${r},${c}`);
+          }
+        }
+      }
+    }
+    
+    // 触发消除
+    match3State.isProcessing = true;
+    match3State.score += toRemove.size * 15;
+    
+    toRemove.forEach(key => {
+      const [row, col] = key.split(',').map(Number);
+      const tile = match3State.board[row][col];
+      if (tile) {
+        const pos = getMatch3TileCenter(col, row);
+        effects.push({ x: pos.x, y: pos.y, vx: (Math.random() - 0.5) * 4, vy: -4, life: 1.2, emoji: '✨' });
+        match3State.board[row][col] = null;
+      }
+    });
+    
+    effects.push({ x: getMatch3TileCenter(rainbow.col, rainbow.row).x, y: getMatch3TileCenter(rainbow.col, rainbow.row).y, vx: 0, vy: 0, life: 1.5, emoji: '🌈' });
+    
+    setTimeout(() => {
+      dropTiles();
+      fillBoard();
+      const newMatches = findMatches();
+      if (newMatches.length > 0) {
+        setTimeout(() => processMatches(newMatches), 250);
+      } else {
+        match3State.isProcessing = false;
+        match3State.combo = 0;
+        checkGameEnd();
+      }
+    }, 300);
+    return;
+  }
+  
   // 检查匹配
   const matches = findMatches();
   if (matches.length > 0) {
     match3State.moves--;
     match3State.selectedTile = null;
+    match3State.combo = 0;
     processMatches(matches);
   } else {
     // 换回来
@@ -1055,46 +1120,137 @@ function swapTiles(tile1, tile2) {
 }
 
 function findMatches() {
-  const matches = new Set();
+  const matches = [];
+  const checked = new Set();
   
-  // 横向
+  // 横向检测
   for (let row = 0; row < MATCH3_GRID.rows; row++) {
-    for (let col = 0; col < MATCH3_GRID.cols - 2; col++) {
-      const t1 = match3State.board[row][col];
-      const t2 = match3State.board[row][col+1];
-      const t3 = match3State.board[row][col+2];
-      if (t1 && t2 && t3 && t1.type === t2.type && t2.type === t3.type) {
-        matches.add(t1); matches.add(t2); matches.add(t3);
+    let col = 0;
+    while (col < MATCH3_GRID.cols) {
+      const tile = match3State.board[row][col];
+      if (!tile || tile.type === 'rainbow') { col++; continue; }
+      
+      // 找连续相同的
+      let count = 1;
+      while (col + count < MATCH3_GRID.cols) {
+        const next = match3State.board[row][col + count];
+        if (next && next.type === tile.type && !next.special) {
+          count++;
+        } else break;
       }
+      
+      if (count >= 3) {
+        const matchTiles = [];
+        for (let i = 0; i < count; i++) {
+          matchTiles.push(match3State.board[row][col + i]);
+        }
+        matches.push({ tiles: matchTiles, direction: 'horizontal', count });
+      }
+      col += Math.max(1, count);
     }
   }
   
-  // 纵向
-  for (let row = 0; row < MATCH3_GRID.rows - 2; row++) {
-    for (let col = 0; col < MATCH3_GRID.cols; col++) {
-      const t1 = match3State.board[row][col];
-      const t2 = match3State.board[row+1][col];
-      const t3 = match3State.board[row+2][col];
-      if (t1 && t2 && t3 && t1.type === t2.type && t2.type === t3.type) {
-        matches.add(t1); matches.add(t2); matches.add(t3);
+  // 纵向检测
+  for (let col = 0; col < MATCH3_GRID.cols; col++) {
+    let row = 0;
+    while (row < MATCH3_GRID.rows) {
+      const tile = match3State.board[row][col];
+      if (!tile || tile.type === 'rainbow') { row++; continue; }
+      
+      let count = 1;
+      while (row + count < MATCH3_GRID.rows) {
+        const next = match3State.board[row + count][col];
+        if (next && next.type === tile.type && !next.special) {
+          count++;
+        } else break;
       }
+      
+      if (count >= 3) {
+        const matchTiles = [];
+        for (let i = 0; i < count; i++) {
+          matchTiles.push(match3State.board[row + i][col]);
+        }
+        matches.push({ tiles: matchTiles, direction: 'vertical', count });
+      }
+      row += Math.max(1, count);
     }
   }
   
-  return Array.from(matches);
+  return matches;
 }
 
 function processMatches(matches) {
   match3State.isProcessing = true;
   
-  // 计分
-  match3State.score += matches.length * 10;
+  const toRemove = new Set();
+  const specialToCreate = [];
   
-  // 移除匹配的方块
-  matches.forEach(tile => {
-    const pos = getMatch3TileCenter(tile.col, tile.row);
-    effects.push({ x: pos.x, y: pos.y, vx: 0, vy: -2, life: 1, emoji: '✨' });
-    match3State.board[tile.row][tile.col] = null;
+  for (const match of matches) {
+    const { tiles, direction, count } = match;
+    
+    // 检查是否需要创建特殊方块
+    if (count === 4) {
+      // 4连：创建条纹方块（横/竖）
+      const centerTile = tiles[1];
+      specialToCreate.push({
+        row: centerTile.row,
+        col: centerTile.col,
+        type: centerTile.type,
+        special: direction === 'horizontal' ? 'stripe_v' : 'stripe_h'
+      });
+    } else if (count >= 5) {
+      // 5连：创建彩虹方块
+      const centerTile = tiles[2];
+      specialToCreate.push({
+        row: centerTile.row,
+        col: centerTile.col,
+        type: 'rainbow',
+        special: 'rainbow'
+      });
+    }
+    
+    // 标记要消除的方块
+    tiles.forEach(t => toRemove.add(`${t.row},${t.col}`));
+  }
+  
+  // 计分（连消加成）
+  const baseScore = toRemove.size * 10;
+  const comboBonus = match3State.combo * 5;
+  match3State.score += baseScore + comboBonus;
+  match3State.combo++;
+  
+  // 处理特殊方块的爆炸效果
+  toRemove.forEach(key => {
+    const [row, col] = key.split(',').map(Number);
+    const tile = match3State.board[row][col];
+    if (tile && tile.special) {
+      triggerSpecialTile(tile, toRemove);
+    }
+  });
+  
+  // 移除方块并添加特效
+  toRemove.forEach(key => {
+    const [row, col] = key.split(',').map(Number);
+    const tile = match3State.board[row][col];
+    if (tile) {
+      const pos = getMatch3TileCenter(col, row);
+      effects.push({ x: pos.x, y: pos.y, vx: (Math.random() - 0.5) * 3, vy: -3, life: 1, emoji: '✨' });
+      match3State.board[row][col] = null;
+    }
+  });
+  
+  // 创建特殊方块
+  specialToCreate.forEach(s => {
+    if (!match3State.board[s.row][s.col]) {
+      match3State.board[s.row][s.col] = {
+        type: s.type,
+        special: s.special,
+        row: s.row,
+        col: s.col
+      };
+      const pos = getMatch3TileCenter(s.col, s.row);
+      effects.push({ x: pos.x, y: pos.y, vx: 0, vy: 0, life: 1.5, emoji: '💫' });
+    }
   });
   
   // 延迟处理下落
@@ -1104,12 +1260,47 @@ function processMatches(matches) {
     
     const newMatches = findMatches();
     if (newMatches.length > 0) {
-      setTimeout(() => processMatches(newMatches), 300);
+      setTimeout(() => processMatches(newMatches), 250);
     } else {
       match3State.isProcessing = false;
+      match3State.combo = 0;
       checkGameEnd();
     }
-  }, 300);
+  }, 250);
+}
+
+function triggerSpecialTile(tile, toRemove) {
+  const { row, col, special } = tile;
+  
+  if (special === 'stripe_h') {
+    // 横向条纹：消除整行
+    for (let c = 0; c < MATCH3_GRID.cols; c++) {
+      toRemove.add(`${row},${c}`);
+    }
+    const pos = getMatch3TileCenter(col, row);
+    effects.push({ x: pos.x, y: pos.y, vx: 0, vy: 0, life: 1, emoji: '💥' });
+  } else if (special === 'stripe_v') {
+    // 纵向条纹：消除整列
+    for (let r = 0; r < MATCH3_GRID.rows; r++) {
+      toRemove.add(`${r},${col}`);
+    }
+    const pos = getMatch3TileCenter(col, row);
+    effects.push({ x: pos.x, y: pos.y, vx: 0, vy: 0, life: 1, emoji: '💥' });
+  } else if (special === 'rainbow') {
+    // 彩虹：消除所有同类型方块（随机选一种）
+    const types = MATCH3_ELEMENTS.filter(t => t !== 'rainbow');
+    const targetType = types[Math.floor(Math.random() * types.length)];
+    for (let r = 0; r < MATCH3_GRID.rows; r++) {
+      for (let c = 0; c < MATCH3_GRID.cols; c++) {
+        const t = match3State.board[r][c];
+        if (t && t.type === targetType) {
+          toRemove.add(`${r},${c}`);
+        }
+      }
+    }
+    const pos = getMatch3TileCenter(col, row);
+    effects.push({ x: pos.x, y: pos.y, vx: 0, vy: 0, life: 1.5, emoji: '🌈' });
+  }
 }
 
 function dropTiles() {
@@ -1276,17 +1467,62 @@ function renderMatch3Scene() {
       }
       
       // 方块背景
-      ctx.fillStyle = MATCH3_COLORS[tile.type];
+      if (tile.special === 'rainbow') {
+        // 彩虹方块：渐变背景
+        const rainbowGradient = ctx.createLinearGradient(
+          (pos.x - size/2) * scale, pos.y * scale,
+          (pos.x + size/2) * scale, pos.y * scale
+        );
+        rainbowGradient.addColorStop(0, '#ff6b6b');
+        rainbowGradient.addColorStop(0.25, '#ffe66d');
+        rainbowGradient.addColorStop(0.5, '#4ecdc4');
+        rainbowGradient.addColorStop(0.75, '#45b7d1');
+        rainbowGradient.addColorStop(1, '#f093fb');
+        ctx.fillStyle = rainbowGradient;
+      } else {
+        ctx.fillStyle = MATCH3_COLORS[tile.type] || '#888';
+      }
       roundRect((pos.x - size/2) * scale, (pos.y - size/2) * scale, size * scale, size * scale, 10 * scale);
       ctx.fill();
+      
+      // 特殊方块标记
+      if (tile.special === 'stripe_h') {
+        // 横条纹
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.lineWidth = 3 * scale;
+        ctx.beginPath();
+        ctx.moveTo((pos.x - size/2 + 5) * scale, pos.y * scale);
+        ctx.lineTo((pos.x + size/2 - 5) * scale, pos.y * scale);
+        ctx.stroke();
+      } else if (tile.special === 'stripe_v') {
+        // 竖条纹
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.lineWidth = 3 * scale;
+        ctx.beginPath();
+        ctx.moveTo(pos.x * scale, (pos.y - size/2 + 5) * scale);
+        ctx.lineTo(pos.x * scale, (pos.y + size/2 - 5) * scale);
+        ctx.stroke();
+      }
       
       // Emoji
       const emojiSize = Math.floor(MATCH3_GRID.tileSize * 0.55);
       ctx.font = `${emojiSize * scale}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(MATCH3_EMOJIS[tile.type], pos.x * scale, pos.y * scale);
+      if (tile.special === 'rainbow') {
+        ctx.fillText('🌈', pos.x * scale, pos.y * scale);
+      } else {
+        ctx.fillText(MATCH3_EMOJIS[tile.type], pos.x * scale, pos.y * scale);
+      }
     }
+  }
+  
+  // 连击显示
+  if (match3State.combo > 1) {
+    ctx.fillStyle = '#ff6b6b';
+    ctx.font = `bold ${20 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${match3State.combo}连击！`, W / 2 * scale, (movesY + 55) * scale);
   }
   
   // 特效
