@@ -1666,6 +1666,8 @@ let match3State = {
   iceCleared: 0,
   stoneCleared: 0,
   chainCleared: 0,
+  // 交换动画
+  swapAnim: null, // { tile1, tile2, progress, reverse }
 };
 
 const MATCH3_GRID = { 
@@ -1696,6 +1698,7 @@ function initMatch3Scene() {
   match3State.iceCleared = 0;
   match3State.stoneCleared = 0;
   match3State.chainCleared = 0;
+  match3State.swapAnim = null;
   
   initMatch3Board();
 }
@@ -1838,95 +1841,146 @@ function handleMatch3Touch(x, y) {
 }
 
 function swapTiles(tile1, tile2) {
-  // 交换位置
+  // 开始交换动画
+  match3State.isProcessing = true;
+  match3State.selectedTile = null;
+  
+  // 记录原始位置
   const t1r = tile1.row, t1c = tile1.col;
   const t2r = tile2.row, t2c = tile2.col;
   
-  match3State.board[t1r][t1c] = tile2;
-  match3State.board[t2r][t2c] = tile1;
-  tile1.row = t2r; tile1.col = t2c;
-  tile2.row = t1r; tile2.col = t1c;
+  // 启动交换动画
+  match3State.swapAnim = {
+    tile1: tile1,
+    tile2: tile2,
+    t1r: t1r, t1c: t1c,
+    t2r: t2r, t2c: t2c,
+    progress: 0,
+    reverse: false,
+    phase: 'swapping' // swapping -> checking -> reversing -> done
+  };
+}
+
+// 更新交换动画
+function updateSwapAnimation(dt) {
+  const anim = match3State.swapAnim;
+  if (!anim) return;
   
-  // 特殊方块直接交换触发
-  if (tile1.special === 'rainbow' || tile2.special === 'rainbow') {
-    match3State.moves--;
-    match3State.selectedTile = null;
-    match3State.combo = 0;
+  anim.progress += dt * 4; // 动画速度
+  
+  if (anim.progress >= 1) {
+    anim.progress = 1;
     
-    // 彩虹方块交换：消除对方类型的所有方块
-    const rainbow = tile1.special === 'rainbow' ? tile1 : tile2;
-    const other = tile1.special === 'rainbow' ? tile2 : tile1;
-    const toRemove = new Set();
-    
-    toRemove.add(`${rainbow.row},${rainbow.col}`);
-    
-    if (other.special === 'rainbow') {
-      // 两个彩虹：全场消除！
-      for (let r = 0; r < MATCH3_GRID.rows; r++) {
-        for (let c = 0; c < MATCH3_GRID.cols; c++) {
+    if (anim.phase === 'swapping') {
+      // 交换完成，检查是否有匹配
+      const tile1 = anim.tile1;
+      const tile2 = anim.tile2;
+      
+      // 执行实际的位置交换
+      match3State.board[anim.t1r][anim.t1c] = tile2;
+      match3State.board[anim.t2r][anim.t2c] = tile1;
+      tile1.row = anim.t2r; tile1.col = anim.t2c;
+      tile2.row = anim.t1r; tile2.col = anim.t1c;
+      
+      // 特殊方块处理（彩虹）
+      if (tile1.special === 'rainbow' || tile2.special === 'rainbow') {
+        match3State.swapAnim = null;
+        handleRainbowSwap(tile1, tile2, anim.t1r, anim.t1c, anim.t2r, anim.t2c);
+        return;
+      }
+      
+      // 检查匹配
+      const matches = findMatches();
+      if (matches.length > 0) {
+        // 有匹配，继续处理
+        match3State.swapAnim = null;
+        match3State.moves--;
+        match3State.combo = 0;
+        processMatches(matches);
+      } else {
+        // 没有匹配，准备换回来
+        anim.phase = 'reversing';
+        anim.progress = 0;
+        showInfo('无法消除！');
+      }
+    } else if (anim.phase === 'reversing') {
+      // 换回完成
+      const tile1 = anim.tile1;
+      const tile2 = anim.tile2;
+      
+      // 换回原位
+      match3State.board[anim.t1r][anim.t1c] = tile1;
+      match3State.board[anim.t2r][anim.t2c] = tile2;
+      tile1.row = anim.t1r; tile1.col = anim.t1c;
+      tile2.row = anim.t2r; tile2.col = anim.t2c;
+      
+      match3State.swapAnim = null;
+      match3State.isProcessing = false;
+    }
+  }
+}
+
+// 处理彩虹方块交换
+function handleRainbowSwap(tile1, tile2, t1r, t1c, t2r, t2c) {
+  match3State.moves--;
+  match3State.combo = 0;
+  
+  const rainbow = tile1.special === 'rainbow' ? tile1 : tile2;
+  const other = tile1.special === 'rainbow' ? tile2 : tile1;
+  const toRemove = new Set();
+  
+  toRemove.add(`${rainbow.row},${rainbow.col}`);
+  
+  if (other.special === 'rainbow') {
+    // 两个彩虹：全场消除！
+    for (let r = 0; r < MATCH3_GRID.rows; r++) {
+      for (let c = 0; c < MATCH3_GRID.cols; c++) {
+        toRemove.add(`${r},${c}`);
+      }
+    }
+  } else {
+    // 消除所有同类型
+    for (let r = 0; r < MATCH3_GRID.rows; r++) {
+      for (let c = 0; c < MATCH3_GRID.cols; c++) {
+        const t = match3State.board[r][c];
+        if (t && t.type === other.type) {
           toRemove.add(`${r},${c}`);
         }
       }
-    } else {
-      // 消除所有同类型
-      for (let r = 0; r < MATCH3_GRID.rows; r++) {
-        for (let c = 0; c < MATCH3_GRID.cols; c++) {
-          const t = match3State.board[r][c];
-          if (t && t.type === other.type) {
-            toRemove.add(`${r},${c}`);
-          }
-        }
-      }
     }
-    
-    // 触发消除
-    match3State.isProcessing = true;
-    match3State.score += toRemove.size * 15;
-    
-    toRemove.forEach(key => {
-      const [row, col] = key.split(',').map(Number);
-      const tile = match3State.board[row][col];
-      if (tile) {
-        const pos = getMatch3TileCenter(col, row);
-        effects.push({ x: pos.x, y: pos.y, vx: (Math.random() - 0.5) * 4, vy: -4, life: 1.2, emoji: '✨' });
-        match3State.board[row][col] = null;
-      }
-    });
-    
-    effects.push({ x: getMatch3TileCenter(rainbow.col, rainbow.row).x, y: getMatch3TileCenter(rainbow.col, rainbow.row).y, vx: 0, vy: 0, life: 1.5, emoji: '🌈' });
-    
-    setTimeout(() => {
-      dropTiles();
-      fillBoard();
-      const newMatches = findMatches();
-      if (newMatches.length > 0) {
-        setTimeout(() => processMatches(newMatches), 250);
-      } else {
-        match3State.isProcessing = false;
-        match3State.combo = 0;
-        checkGameEnd();
-      }
-    }, 300);
-    return;
   }
   
-  // 检查匹配
-  const matches = findMatches();
-  if (matches.length > 0) {
-    match3State.moves--;
-    match3State.selectedTile = null;
-    match3State.combo = 0;
-    processMatches(matches);
-  } else {
-    // 换回来
-    match3State.board[t1r][t1c] = tile1;
-    match3State.board[t2r][t2c] = tile2;
-    tile1.row = t1r; tile1.col = t1c;
-    tile2.row = t2r; tile2.col = t2c;
-    match3State.selectedTile = null;  // 重置选中状态
-    showInfo('无法消除！');
-  }
+  // 触发消除
+  match3State.isProcessing = true;
+  match3State.score += toRemove.size * 15;
+  
+  toRemove.forEach(key => {
+    const [row, col] = key.split(',').map(Number);
+    const tile = match3State.board[row][col];
+    if (tile) {
+      const pos = getMatch3TileCenter(col, row);
+      effects.push({ x: pos.x, y: pos.y, vx: (Math.random() - 0.5) * 4, vy: -4, life: 1.2, emoji: '✨' });
+      match3State.board[row][col] = null;
+    }
+  });
+  
+  effects.push({ x: getMatch3TileCenter(rainbow.col, rainbow.row).x, y: getMatch3TileCenter(rainbow.col, rainbow.row).y, vx: 0, vy: 0, life: 1.5, emoji: '🌈' });
+  
+  setTimeout(() => {
+    dropTiles();
+    fillBoard();
+    const newMatches = findMatches();
+    if (newMatches.length > 0) {
+      setTimeout(() => processMatches(newMatches), 250);
+    } else {
+      match3State.isProcessing = false;
+      match3State.combo = 0;
+      checkGameEnd();
+    }
+  }, 300);
 }
+
+// 旧的swapTiles逻辑移除，用动画版本替代
 
 function findMatches() {
   const matches = [];
@@ -2360,8 +2414,27 @@ function renderMatch3Scene() {
       const tile = match3State.board[row][col];
       if (!tile) continue;
       
-      const pos = getMatch3TileCenter(col, row);
+      let pos = getMatch3TileCenter(col, row);
       const size = MATCH3_GRID.tileSize - 8;
+      
+      // 交换动画偏移
+      const anim = match3State.swapAnim;
+      if (anim) {
+        const progress = anim.phase === 'reversing' ? (1 - anim.progress) : anim.progress;
+        const tileSize = MATCH3_GRID.tileSize;
+        
+        if (anim.tile1 === tile) {
+          // tile1 移动到 tile2 的位置
+          const dx = (anim.t2c - anim.t1c) * tileSize * progress;
+          const dy = (anim.t2r - anim.t1r) * tileSize * progress;
+          pos = { x: pos.x + dx, y: pos.y + dy };
+        } else if (anim.tile2 === tile) {
+          // tile2 移动到 tile1 的位置
+          const dx = (anim.t1c - anim.t2c) * tileSize * progress;
+          const dy = (anim.t1r - anim.t2r) * tileSize * progress;
+          pos = { x: pos.x + dx, y: pos.y + dy };
+        }
+      }
       
       // 选中高亮
       if (match3State.selectedTile && match3State.selectedTile.row === row && match3State.selectedTile.col === col) {
@@ -4641,6 +4714,11 @@ function updateAnimations(dt) {
   
   // 更新购物动画
   updateShopperAnimations(dt);
+  
+  // 更新消消乐交换动画
+  if (currentScene === 'Match3') {
+    updateSwapAnimation(dt);
+  }
   
   // 更新物品缩放动画
   for (const item of mergeState.items) {
