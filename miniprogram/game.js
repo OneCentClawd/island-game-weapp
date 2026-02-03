@@ -1288,20 +1288,19 @@ function drawShopperArea() {
         ctx.font = `${16 * scale}px sans-serif`;
         ctx.fillText(item.emoji, wantX * scale, (cardY + 16) * scale);
         
-        // 数量 - 白色带黑色描边，更清晰
-        if (want.count > 1) {
-          ctx.font = `bold ${12 * scale}px sans-serif`;
-          const countText = `x${want.count}`;
-          const countX = wantX + 18;
-          // 描边
-          ctx.strokeStyle = '#000';
-          ctx.lineWidth = 3 * scale;
-          ctx.strokeText(countText, countX * scale, (cardY + 16) * scale);
-          // 填充
-          ctx.fillStyle = isFulfilled ? '#4CAF50' : '#fff';
-          ctx.fillText(countText, countX * scale, (cardY + 16) * scale);
-        }
-        wantX += 35;
+        // 数量 - 始终显示，白色带黑色描边
+        ctx.font = `bold ${12 * scale}px sans-serif`;
+        const countText = `x${want.count}`;
+        const countX = wantX + 18;
+        // 描边
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3 * scale;
+        ctx.strokeText(countText, countX * scale, (cardY + 16) * scale);
+        // 填充 - 满足绿色，不满足白色
+        ctx.fillStyle = isFulfilled ? '#4CAF50' : '#fff';
+        ctx.fillText(countText, countX * scale, (cardY + 16) * scale);
+        
+        wantX += 38;
       }
     });
     
