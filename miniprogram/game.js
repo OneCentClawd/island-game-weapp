@@ -271,14 +271,13 @@ function renderMainMenu() {
   const centerX = W / 2;
   
   // 安全区域
-  const safeTop = systemInfo.safeArea ? systemInfo.safeArea.top : 40;
   const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
   
-  // 获取胶囊按钮信息，整体内容从胶囊下方开始
-  let capsuleBottom = safeTop + 50; // 默认值
+  // 获取胶囊按钮信息
+  let capsuleBottom = 80; // 默认值
   try {
     const capsule = wx.getMenuButtonBoundingClientRect();
-    capsuleBottom = capsule.bottom + 10; // 胶囊底部 + 间距
+    capsuleBottom = capsule.bottom + 15;
   } catch (e) {}
   
   // 渐变背景
@@ -288,47 +287,47 @@ function renderMainMenu() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W * scale, H * scale);
   
-  // 顶部资源栏 - 放在胶囊下方
-  const resY = capsuleBottom + 10;
-  ctx.font = `bold ${14 * scale}px sans-serif`;
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#fff';
-  ctx.fillText(`⚡${SaveManager.getEnergy()}`, 15 * scale, resY * scale);
-  ctx.fillText(`💰${SaveManager.getResources().coin}`, 85 * scale, resY * scale);
-  ctx.fillText(`💎${SaveManager.getResources().diamond}`, 155 * scale, resY * scale);
-  
-  // 右上角图标
-  ctx.textAlign = 'center';
-  ctx.font = `${28 * scale}px sans-serif`;
-  ctx.fillText('🏆', (W - 90) * scale, resY * scale);
-  ctx.fillText('⚙️', (W - 45) * scale, resY * scale);
-  
-  // 游戏标题 - 从资源栏下方开始
-  const titleY = resY + 50;
-  ctx.font = `${80 * scale}px sans-serif`;
+  // 游戏标题区域 - 从胶囊下方开始
+  const titleY = capsuleBottom + 40;
+  ctx.font = `${70 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillText('🏝️', centerX * scale, titleY * scale);
   
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${48 * scale}px sans-serif`;
+  ctx.font = `bold ${42 * scale}px sans-serif`;
   ctx.shadowColor = '#000';
   ctx.shadowBlur = 5 * scale;
   ctx.shadowOffsetX = 2 * scale;
   ctx.shadowOffsetY = 2 * scale;
-  ctx.fillText('小岛物语', centerX * scale, (titleY + 90) * scale);
+  ctx.fillText('小岛物语', centerX * scale, (titleY + 75) * scale);
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
   
   ctx.fillStyle = '#ffe66d';
-  ctx.font = `${18 * scale}px sans-serif`;
-  ctx.fillText('Island Story', centerX * scale, (titleY + 130) * scale);
+  ctx.font = `${16 * scale}px sans-serif`;
+  ctx.fillText('Island Story', centerX * scale, (titleY + 105) * scale);
   
-  // 按钮区域 - 在标题和底部之间均匀分布
-  const btnStartY = titleY + 170;
-  const btnEndY = H - safeBottom - 50;
+  // 资源栏 - 放在标题下方
+  const resY = titleY + 135;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  roundRect(20 * scale, (resY - 18) * scale, (W - 40) * scale, 36 * scale, 10 * scale);
+  ctx.fill();
+  
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.fillStyle = '#fff';
+  const resSpacing = (W - 60) / 5;
+  ctx.fillText(`⚡${SaveManager.getEnergy()}`, (30 + resSpacing * 0) * scale, resY * scale);
+  ctx.fillText(`💰${SaveManager.getResources().coin}`, (30 + resSpacing * 1) * scale, resY * scale);
+  ctx.fillText(`💎${SaveManager.getResources().diamond}`, (30 + resSpacing * 2) * scale, resY * scale);
+  ctx.fillText(`🏆`, (30 + resSpacing * 3) * scale, resY * scale);
+  ctx.fillText(`⚙️`, (30 + resSpacing * 4) * scale, resY * scale);
+  
+  // 按钮区域
+  const btnStartY = resY + 45;
+  const btnEndY = H - safeBottom - 40;
   const btnCount = 5;
-  const btnSpacing = Math.min(70, (btnEndY - btnStartY) / btnCount);
+  const btnSpacing = Math.min(65, (btnEndY - btnStartY) / btnCount);
   
   const buttons = [
     { text: '🎮 消消乐', scene: 'LevelSelect' },
@@ -340,23 +339,24 @@ function renderMainMenu() {
   
   buttons.forEach((btn, i) => {
     const y = btnStartY + i * btnSpacing;
-    drawButton(centerX, y, Math.min(260, W - 80), 50, btn.text);
+    drawButton(centerX, y, Math.min(250, W - 60), 48, btn.text);
   });
   
   // 保存按钮位置供触摸检测用
   mainMenuState.buttons = buttons.map((btn, i) => ({
     ...btn,
     y: btnStartY + i * btnSpacing,
-    w: Math.min(260, W - 80),
-    h: 50,
+    w: Math.min(250, W - 60),
+    h: 48,
   }));
   mainMenuState.resY = resY;
+  mainMenuState.resSpacing = resSpacing;
   
   // 版本
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.font = `${12 * scale}px sans-serif`;
-  ctx.fillText(`v${GameConfig.VERSION} - 开发中`, centerX * scale, (H - safeBottom - 15) * scale);
+  ctx.font = `${11 * scale}px sans-serif`;
+  ctx.fillText(`v${GameConfig.VERSION} - 开发中`, centerX * scale, (H - safeBottom - 10) * scale);
 }
 
 function handleMainMenuTouch(x, y) {
