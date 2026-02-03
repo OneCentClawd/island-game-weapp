@@ -299,12 +299,12 @@ function renderMainMenu() {
   ctx.fillText(`💰${SaveManager.getResources().coin}`, 80 * scale, resY * scale);
   ctx.fillText(`💎${SaveManager.getResources().diamond}`, 150 * scale, resY * scale);
   
-  // 成就和设置图标 - 放在标题下方右侧
-  const iconY = capsuleBottom + 15;
+  // 成就和设置图标 - 放在Island Story下方
+  const iconY = titleY + 140;
   ctx.textAlign = 'center';
-  ctx.font = `${26 * scale}px sans-serif`;
-  ctx.fillText('🏆', (W - 70) * scale, iconY * scale);
-  ctx.fillText('⚙️', (W - 30) * scale, iconY * scale);
+  ctx.font = `${28 * scale}px sans-serif`;
+  ctx.fillText('🏆', (centerX - 40) * scale, iconY * scale);
+  ctx.fillText('⚙️', (centerX + 40) * scale, iconY * scale);
   
   // 保存图标位置
   mainMenuState.iconY = iconY;
@@ -382,13 +382,13 @@ function handleMainMenuTouch(x, y) {
   
   // 成就图标
   const iconY = mainMenuState.iconY || 100;
-  if (x >= W - 85 && x <= W - 55 && y >= iconY - 15 && y <= iconY + 15) {
+  if (x >= centerX - 60 && x <= centerX - 20 && y >= iconY - 20 && y <= iconY + 20) {
     switchScene('Achievement');
     return;
   }
   
   // 设置图标
-  if (x >= W - 45 && x <= W - 15 && y >= iconY - 15 && y <= iconY + 15) {
+  if (x >= centerX + 20 && x <= centerX + 60 && y >= iconY - 20 && y <= iconY + 20) {
     showInfo('⚙️ 设置功能开发中...');
     return;
   }
