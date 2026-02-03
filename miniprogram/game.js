@@ -737,6 +737,10 @@ function fulfillShopper(shopper) {
     if (idx >= 0) mergeState.shoppers.splice(idx, 1);
     mergeState.shoppers.push(generateShopper());
     saveShoppers();
+    
+    // 自动同步金币到排行榜
+    const totalCoins = SaveManager.data.statistics?.totalCoins || SaveManager.getResources().coin;
+    CloudService.submitScore('merge_coin', totalCoins, 1);
   }, (totalDelay + 0.5) * 1000);
   
   showInfo(`🎉 ${shopper.emoji} ${shopper.name}满意地离开了！+💰${shopper.reward.coin}${shopper.reward.diamond > 0 ? ` +💎${shopper.reward.diamond}` : ''}`);
@@ -2435,6 +2439,10 @@ function checkGameEnd() {
     SaveManager.data.statistics.totalCoins = (SaveManager.data.statistics.totalCoins || 0) + (reward.coin || 0);
     
     SaveManager.save();
+    
+    // 自动同步到云端排行榜
+    CloudService.submitScore('match3_level', SaveManager.data.highestLevel, SaveManager.data.highestLevel);
+    CloudService.submitScore('match3_score', match3State.score, match3State.level);
     
   } else if (match3State.moves <= 0) {
     match3State.won = false;
@@ -4712,7 +4720,35 @@ let leaderboardState = {
 function initLeaderboardScene() {
   leaderboardState.loading = true;
   leaderboardState.rankings = [];
+  
+  // 自动同步本地数据到云端
+  syncAllScores();
+  
   loadLeaderboard(leaderboardState.tab);
+}
+
+// 自动同步所有分数
+async function syncAllScores() {
+  const highestLevel = SaveManager.data.highestLevel || 1;
+  const totalCoins = SaveManager.data.statistics?.totalCoins || SaveManager.getResources().coin;
+  
+  // 计算最高单局分数
+  let maxScore = 0;
+  const levelStars = SaveManager.data.levelStars || {};
+  for (const level in levelStars) {
+    const stars = levelStars[level];
+    const config = MATCH3_LEVELS[parseInt(level) - 1];
+    if (config && stars > 0) {
+      maxScore = Math.max(maxScore, config.stars[stars - 1] || 0);
+    }
+  }
+  
+  // 并行上传所有分数
+  await Promise.all([
+    CloudService.submitScore('match3_level', highestLevel, highestLevel),
+    CloudService.submitScore('match3_score', maxScore, highestLevel),
+    CloudService.submitScore('merge_coin', totalCoins, 1),
+  ]);
 }
 
 async function loadLeaderboard(type) {
@@ -4768,39 +4804,13 @@ function handleLeaderboardTouch(x, y) {
     }
   }
   
-  // 上传分数按钮
-  const uploadBtnY = bottomY;
-  if (x >= W - 95 && x <= W - 15 && y >= uploadBtnY && y <= uploadBtnY + 36) {
-    uploadMyScore();
+  // 刷新按钮
+  if (x >= W - 95 && x <= W - 15 && y >= bottomY && y <= bottomY + 36) {
+    leaderboardState.loading = true;
+    syncAllScores().then(() => {
+      loadLeaderboard(leaderboardState.tab);
+    });
     return;
-  }
-}
-
-async function uploadMyScore() {
-  showInfo('⏳ 上传中...');
-  
-  // 根据当前tab上传对应分数
-  const tab = leaderboardState.tab;
-  let score = 0;
-  let level = 1;
-  
-  if (tab === 'match3_level') {
-    score = SaveManager.data.highestLevel || 1;
-    level = score;
-  } else if (tab === 'match3_score') {
-    // 找所有关卡的最高分
-    score = Math.max(...Object.values(SaveManager.data.levelStars || {}).map(s => s * 1000), 0);
-  } else if (tab === 'merge_coin') {
-    score = SaveManager.data.totalCoinEarned || SaveManager.getResources().coin;
-  }
-  
-  const result = await CloudService.submitScore(tab, score, level);
-  
-  if (result.success) {
-    showInfo('✅ 上传成功！');
-    loadLeaderboard(tab);  // 刷新排行榜
-  } else {
-    showInfo('❌ 上传失败');
   }
 }
 
@@ -4928,15 +4938,15 @@ function renderLeaderboardScene() {
     : '我的排名: 暂未上榜';
   ctx.fillText(myRankText, 25 * scale, (myRankY + 22) * scale);
   
-  // 上传按钮
+  // 刷新按钮
   const bottomY = H - Math.max(safeBottom, 15) - 45;
-  ctx.fillStyle = '#4CAF50';
+  ctx.fillStyle = '#2196F3';
   roundRect((W - 95) * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
   ctx.fill();
   ctx.fillStyle = '#fff';
   ctx.font = `bold ${13 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('📤 上传', (W - 55) * scale, (bottomY + 22) * scale);
+  ctx.fillText('🔄 刷新', (W - 55) * scale, (bottomY + 22) * scale);
   
   // 返回按钮
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
