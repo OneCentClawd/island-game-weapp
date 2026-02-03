@@ -4777,19 +4777,19 @@ function handleLeaderboardTouch(x, y) {
   const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
   const bottomY = H - Math.max(safeBottom, 15) - 45;
   
-  // 返回按钮
-  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
-    switchScene('MainMenu');
-    return;
-  }
-  
-  // Tab切换
   let capsuleBottom = 80;
   try {
     const capsule = wx.getMenuButtonBoundingClientRect();
     capsuleBottom = capsule.bottom + 15;
   } catch (e) {}
   
+  // 返回按钮 - 左上角
+  if (x >= 15 && x <= 75 && y >= capsuleBottom - 18 && y <= capsuleBottom + 14) {
+    switchScene('MainMenu');
+    return;
+  }
+  
+  // Tab切换
   const tabY = capsuleBottom + 50;
   const tabWidth = (W - 40) / 3;
   
@@ -4938,7 +4938,7 @@ function renderLeaderboardScene() {
     : '我的排名: 暂未上榜';
   ctx.fillText(myRankText, 25 * scale, (myRankY + 22) * scale);
   
-  // 刷新按钮
+  // 刷新按钮 - 底部右侧
   const bottomY = H - Math.max(safeBottom, 15) - 45;
   ctx.fillStyle = '#2196F3';
   roundRect((W - 95) * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
@@ -4948,14 +4948,14 @@ function renderLeaderboardScene() {
   ctx.textAlign = 'center';
   ctx.fillText('🔄 刷新', (W - 55) * scale, (bottomY + 22) * scale);
   
-  // 返回按钮
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  // 返回按钮 - 左上角标题旁边
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  roundRect(15 * scale, (capsuleBottom - 18) * scale, 60 * scale, 32 * scale, 8 * scale);
   ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.font = `bold ${13 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('← 返回', 55 * scale, (bottomY + 22) * scale);
+  ctx.fillText('← 返回', 45 * scale, (capsuleBottom) * scale);
 }
 
 // ===================
