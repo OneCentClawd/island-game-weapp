@@ -300,7 +300,7 @@ function renderMainMenu() {
   ctx.fillText(`💎${SaveManager.getResources().diamond}`, 150 * scale, resY * scale);
   
   // 游戏标题 - 从胶囊下方开始
-  const titleY = capsuleBottom + 50;
+  const titleY = capsuleBottom + 80;
   ctx.font = `${70 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillText('🏝️', centerX * scale, titleY * scale);
