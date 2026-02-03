@@ -893,8 +893,11 @@ function getMatch3TileCenter(col, row) {
 function handleMatch3Touch(x, y) {
   if (match3State.isProcessing) return;
   
+  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
+  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+  
   // 返回按钮
-  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
     switchScene('LevelSelect');
     return;
   }
@@ -1127,16 +1130,20 @@ function renderMatch3Scene() {
 function initLevelSelectScene() {}
 
 function handleLevelSelectTouch(x, y) {
+  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
+  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+  
   // 返回按钮
-  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
     switchScene('MainMenu');
     return;
   }
   
   // 关卡按钮
-  const startY = 200;
+  const safeTop = systemInfo.safeArea ? systemInfo.safeArea.top : 40;
+  const startY = safeTop + 120;
   const cols = 5;
-  const spacing = 120;
+  const spacing = Math.min(70, (GameConfig.WIDTH - 60) / cols);
   const startX = (GameConfig.WIDTH - (cols - 1) * spacing) / 2;
   
   for (let i = 0; i < 20; i++) {
@@ -1145,7 +1152,7 @@ function handleLevelSelectTouch(x, y) {
     const lx = startX + col * spacing;
     const ly = startY + row * spacing;
     
-    if (x >= lx - 40 && x <= lx + 40 && y >= ly - 40 && y <= ly + 40) {
+    if (x >= lx - 30 && x <= lx + 30 && y >= ly - 30 && y <= ly + 30) {
       const level = i + 1;
       if (level <= SaveManager.data.highestLevel) {
         switchScene('Match3', { level });
@@ -1215,7 +1222,10 @@ function renderLevelSelectScene() {
 function initIslandScene() {}
 
 function handleIslandTouch(x, y) {
-  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
+  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+  
+  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
     switchScene('MainMenu');
     return;
   }
@@ -1267,7 +1277,10 @@ function renderIslandScene() {
 function initShopScene() {}
 
 function handleShopTouch(x, y) {
-  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
+  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+  
+  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
     switchScene('MainMenu');
     return;
   }
@@ -1320,7 +1333,10 @@ function renderShopScene() {
 function initAchievementScene() {}
 
 function handleAchievementTouch(x, y) {
-  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
+  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+  
+  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
     switchScene('MainMenu');
     return;
   }
@@ -1379,7 +1395,10 @@ function renderAchievementScene() {
 function initDailyTaskScene() {}
 
 function handleDailyTaskTouch(x, y) {
-  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
+  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+  
+  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
     switchScene('MainMenu');
     return;
   }
