@@ -1518,7 +1518,7 @@ function drawSingleItem(item, offsetX = 0, offsetY = 0, isDragging = false) {
     ctx.fill();
   }
   
-  // 背景
+  // 背景 - 使用更饱和的颜色
   ctx.fillStyle = Colors.TIER[item.config.tier] || '#607d8b';
   roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, currentCardSize * scale, currentCardSize * scale, 12 * scale);
   ctx.fill();
@@ -1529,19 +1529,14 @@ function drawSingleItem(item, offsetX = 0, offsetY = 0, isDragging = false) {
   roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, currentCardSize * scale, currentCardSize * scale, 12 * scale);
   ctx.stroke();
   
-  // 高光
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  roundRect((pos.x - halfCard + 4) * scale, (pos.y - halfCard + 4) * scale, (currentCardSize - 8) * scale, (currentCardSize / 2 - 4) * scale, 8 * scale);
-  ctx.fill();
-  
-  // Emoji - 大小根据卡片调整
-  const emojiSize = Math.floor(cardSize * 0.55);
+  // Emoji - 最后绘制，确保在最上层
+  const emojiSize = Math.floor(cardSize * 0.6);
   ctx.font = `${emojiSize * item.scale * (isDragging ? 1.1 : 1) * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(item.config.emoji, pos.x * scale, pos.y * scale);
   
-  // 等级徽章
+  // 等级徽章 - 在emoji之后绘制
   if (item.config.tier > 0) {
     const badgeSize = Math.floor(cardSize * 0.22);
     const badgeX = pos.x + halfCard - badgeSize * 0.5;
