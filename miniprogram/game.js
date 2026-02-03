@@ -6,6 +6,12 @@
 // 加载适配器
 require('./js/libs/weapp-adapter.js');
 
+// 初始化云开发
+wx.cloud.init({
+  env: 'cloud1-3g5wfasg4ce9db63',
+  traceUser: true
+});
+
 // 获取主 canvas
 const canvas = wx.createCanvas();
 const systemInfo = wx.getSystemInfoSync();
@@ -147,6 +153,83 @@ const MATCH3_COLORS = {
   star: '#FFE66D',
   heart: '#FF6B6B',
   diamond: '#4ECDC4',
+};
+
+// ===================
+// 云服务管理
+// ===================
+const CloudService = {
+  userInfo: null,
+  
+  // 获取用户信息（需要用户授权）
+  async getUserInfo() {
+    if (this.userInfo) return this.userInfo;
+    
+    try {
+      const res = await wx.getUserProfile({
+        desc: '用于排行榜显示'
+      });
+      this.userInfo = {
+        nickname: res.userInfo.nickName,
+        avatar: res.userInfo.avatarUrl
+      };
+      return this.userInfo;
+    } catch (e) {
+      return { nickname: '匿名玩家', avatar: '' };
+    }
+  },
+  
+  // 提交分数到排行榜
+  async submitScore(type, score, level) {
+    try {
+      const user = await this.getUserInfo();
+      const res = await wx.cloud.callFunction({
+        name: 'leaderboard',
+        data: {
+          action: 'submit',
+          data: { type, score, level, ...user }
+        }
+      });
+      return res.result;
+    } catch (e) {
+      console.error('提交分数失败:', e);
+      return { success: false };
+    }
+  },
+  
+  // 获取排行榜
+  async getRankings(type, limit = 50) {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'leaderboard',
+        data: {
+          action: 'getRank',
+          data: { type, limit }
+        }
+      });
+      return res.result;
+    } catch (e) {
+      console.error('获取排行榜失败:', e);
+      return { success: false, rankings: [] };
+    }
+  },
+  
+  // 获取自己的排名
+  async getMyRank(type) {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'leaderboard',
+        data: {
+          action: 'getMyRank',
+          data: { type }
+        }
+      });
+      return res.result;
+    } catch (e) {
+      console.error('获取排名失败:', e);
+      return { success: false, rank: -1 };
+    }
+  }
 };
 
 // ===================

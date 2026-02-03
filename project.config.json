@@ -1,5 +1,6 @@
 {
   "miniprogramRoot": "miniprogram/",
+  "cloudfunctionRoot": "cloudfunctions/",
   "compileType": "miniprogram",
   "projectname": "island-game",
   "appid": "wxb94bbd6acccec202",
@@ -19,5 +20,6 @@
   "simulatorType": "wechat",
   "simulatorPluginLibVersion": {},
   "condition": {},
-  "description": "小岛物语 - 合成放置游戏"
+  "description": "小岛物语 - 合成放置游戏",
+  "cloudbaseRoot": "cloudfunctions/"
 }
