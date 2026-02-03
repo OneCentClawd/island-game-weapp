@@ -2573,9 +2573,8 @@ function renderLevelSelectScene() {
 }
 
 // ===================
-// 岛屿场景 (简化)
+// 岛屿场景
 // ===================
-function initIslandScene() {}
 
 // ===================
 // 小岛状态
@@ -2587,26 +2586,72 @@ let islandState = {
     mood: 100, // 心情 0-100
     hunger: 100, // 饱腹度 0-100
     love: 0, // 好感度
-    state: 'idle', // idle, walking, happy, sleeping
+    level: 1, // 小狗等级
+    exp: 0, // 经验值
+    state: 'idle', // idle, walking, happy, sleeping, eating, playing
     targetX: 0.5,
     targetY: 0.5,
     lastFed: Date.now(),
     lastPet: Date.now(),
+    accessory: null, // 装饰品
+    animTimer: 0, // 动画计时器
   },
   buildings: [
-    { type: 'house', x: 0.5, y: 0.4, emoji: '🏠' },
-    { type: 'tree', x: 0.3, y: 0.35, emoji: '🌴' },
-    { type: 'tree', x: 0.7, y: 0.55, emoji: '🌳' },
+    { id: 'house', type: 'house', x: 0.5, y: 0.3, emoji: '🏠', name: '狗窝', level: 1 },
+    { id: 'tree1', type: 'tree', x: 0.25, y: 0.35, emoji: '🌴', name: '椰子树' },
+    { id: 'tree2', type: 'tree', x: 0.75, y: 0.55, emoji: '🌳', name: '大树' },
   ],
+  decorations: [], // 可放置的装饰
+  weather: 'sunny', // sunny, cloudy, rainy
+  timeOfDay: 'day', // day, evening, night
   lastUpdate: Date.now(),
+  particles: [], // 环境粒子（蝴蝶、落叶等）
 };
+
+// 可解锁的建筑/装饰
+const ISLAND_BUILDINGS = [
+  { id: 'flower1', emoji: '🌸', name: '樱花', cost: { coin: 100 } },
+  { id: 'flower2', emoji: '🌻', name: '向日葵', cost: { coin: 100 } },
+  { id: 'flower3', emoji: '🌷', name: '郁金香', cost: { coin: 150 } },
+  { id: 'pond', emoji: '🪷', name: '荷花池', cost: { coin: 500 } },
+  { id: 'fountain', emoji: '⛲', name: '喷泉', cost: { coin: 800 } },
+  { id: 'swing', emoji: '🎠', name: '秋千', cost: { coin: 600 } },
+  { id: 'bench', emoji: '🪑', name: '长椅', cost: { coin: 300 } },
+  { id: 'lamp', emoji: '🏮', name: '灯笼', cost: { coin: 200 } },
+  { id: 'statue', emoji: '🗿', name: '雕像', cost: { coin: 1000, diamond: 5 } },
+  { id: 'gazebo', emoji: '⛺', name: '凉亭', cost: { coin: 1500, diamond: 10 } },
+];
+
+// 小狗配饰
+const PUPPY_ACCESSORIES = [
+  { id: 'bow', emoji: '🎀', name: '蝴蝶结', cost: { coin: 200 } },
+  { id: 'crown', emoji: '👑', name: '小皇冠', cost: { diamond: 10 } },
+  { id: 'glasses', emoji: '🕶️', name: '墨镜', cost: { coin: 300 } },
+  { id: 'scarf', emoji: '🧣', name: '围巾', cost: { coin: 250 } },
+];
 
 function initIslandScene() {
   // 加载保存的小狗状态
   if (SaveManager.data.puppy) {
     islandState.puppy = { ...islandState.puppy, ...SaveManager.data.puppy };
   }
+  if (SaveManager.data.islandBuildings) {
+    islandState.buildings = SaveManager.data.islandBuildings;
+  }
+  if (SaveManager.data.islandDecorations) {
+    islandState.decorations = SaveManager.data.islandDecorations;
+  }
   islandState.lastUpdate = Date.now();
+  
+  // 根据时间设置天气
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 18) {
+    islandState.timeOfDay = 'day';
+  } else if (hour >= 18 && hour < 20) {
+    islandState.timeOfDay = 'evening';
+  } else {
+    islandState.timeOfDay = 'night';
+  }
 }
 
 function updatePuppy() {
@@ -2615,7 +2660,10 @@ function updatePuppy() {
   const dt = (now - islandState.lastUpdate) / 1000;
   islandState.lastUpdate = now;
   
-  // 饱腹度随时间下降 (每分钟降1点)
+  // 动画计时器
+  puppy.animTimer = (puppy.animTimer || 0) + dt;
+  
+  // 饱腹度随时间下降 (每分钟降0.5点)
   const timeSinceFed = (now - puppy.lastFed) / 60000;
   puppy.hunger = Math.max(0, 100 - timeSinceFed * 0.5);
   
@@ -2632,18 +2680,84 @@ function updatePuppy() {
     const dy = puppy.targetY - puppy.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > 0.01) {
-      puppy.x += (dx / dist) * 0.002;
-      puppy.y += (dy / dist) * 0.002;
+      const speed = 0.003;
+      puppy.x += (dx / dist) * speed;
+      puppy.y += (dy / dist) * speed;
     } else {
       puppy.state = 'idle';
     }
   }
   
   // 随机走动
-  if (puppy.state === 'idle' && Math.random() < 0.005) {
-    puppy.targetX = 0.3 + Math.random() * 0.4;
+  if (puppy.state === 'idle' && Math.random() < 0.003) {
+    puppy.targetX = 0.25 + Math.random() * 0.5;
     puppy.targetY = 0.4 + Math.random() * 0.3;
     puppy.state = 'walking';
+  }
+  
+  // 夜间自动睡觉
+  if (islandState.timeOfDay === 'night' && puppy.state === 'idle' && Math.random() < 0.01) {
+    puppy.state = 'sleeping';
+  }
+  if (islandState.timeOfDay === 'day' && puppy.state === 'sleeping' && Math.random() < 0.02) {
+    puppy.state = 'idle';
+  }
+  
+  // 更新环境粒子
+  updateIslandParticles(dt);
+  
+  // 经验和等级
+  const expNeeded = puppy.level * 100;
+  if (puppy.exp >= expNeeded) {
+    puppy.exp -= expNeeded;
+    puppy.level++;
+    showInfo(`🎉 小狗升到 ${puppy.level} 级啦！`);
+    createIslandCelebration();
+  }
+}
+
+function updateIslandParticles(dt) {
+  // 更新现有粒子
+  for (let i = islandState.particles.length - 1; i >= 0; i--) {
+    const p = islandState.particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.life -= dt;
+    if (p.type === 'butterfly') {
+      p.x += Math.sin(p.life * 5) * 0.3 * dt;
+    }
+    if (p.life <= 0 || p.x < -0.1 || p.x > 1.1) {
+      islandState.particles.splice(i, 1);
+    }
+  }
+  
+  // 随机生成新粒子
+  if (islandState.particles.length < 5 && Math.random() < 0.02) {
+    const types = ['butterfly', 'leaf', 'sparkle'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    islandState.particles.push({
+      type,
+      x: Math.random(),
+      y: 0.2 + Math.random() * 0.4,
+      vx: (Math.random() - 0.5) * 0.05,
+      vy: type === 'leaf' ? 0.02 : (Math.random() - 0.5) * 0.02,
+      life: 5 + Math.random() * 5,
+      emoji: type === 'butterfly' ? '🦋' : type === 'leaf' ? '🍃' : '✨',
+    });
+  }
+}
+
+function createIslandCelebration() {
+  for (let i = 0; i < 10; i++) {
+    islandState.particles.push({
+      type: 'celebration',
+      x: 0.5 + (Math.random() - 0.5) * 0.3,
+      y: 0.5,
+      vx: (Math.random() - 0.5) * 0.2,
+      vy: -0.1 - Math.random() * 0.1,
+      life: 2,
+      emoji: ['🎉', '⭐', '💕', '✨'][Math.floor(Math.random() * 4)],
+    });
   }
 }
 
@@ -2654,69 +2768,162 @@ function feedPuppy() {
     islandState.puppy.hunger = Math.min(100, islandState.puppy.hunger + 30);
     islandState.puppy.mood = Math.min(100, islandState.puppy.mood + 10);
     islandState.puppy.love += 1;
+    islandState.puppy.exp += 5;
     islandState.puppy.lastFed = Date.now();
-    islandState.puppy.state = 'happy';
-    setTimeout(() => { islandState.puppy.state = 'idle'; }, 2000);
-    showInfo('🍖 喂食成功！小狗很开心~');
+    islandState.puppy.state = 'eating';
+    
+    // 喂食动画
+    createFeedAnimation();
+    
+    setTimeout(() => { 
+      islandState.puppy.state = 'happy';
+      setTimeout(() => { islandState.puppy.state = 'idle'; }, 1000);
+    }, 1500);
+    
+    showInfo('🍖 喂食成功！小狗很开心~ +5经验');
+    updateDailyTaskProgress('feed', 1);
     savePuppyState();
   } else {
     showInfo('💰 金币不足，需要10金币');
   }
 }
 
+function createFeedAnimation() {
+  const puppy = islandState.puppy;
+  // 食物飞向小狗
+  islandState.particles.push({
+    type: 'food',
+    x: 0.9,
+    y: 0.9,
+    targetX: puppy.x,
+    targetY: puppy.y,
+    progress: 0,
+    life: 0.5,
+    emoji: '🍖',
+  });
+}
+
 function petPuppy() {
-  islandState.puppy.mood = Math.min(100, islandState.puppy.mood + 5);
-  islandState.puppy.love += 0.5;
-  islandState.puppy.lastPet = Date.now();
-  islandState.puppy.state = 'happy';
-  setTimeout(() => { islandState.puppy.state = 'idle'; }, 1500);
-  showInfo('💕 摸摸小狗~');
+  const puppy = islandState.puppy;
+  puppy.mood = Math.min(100, puppy.mood + 5);
+  puppy.love += 0.5;
+  puppy.exp += 2;
+  puppy.lastPet = Date.now();
+  puppy.state = 'happy';
+  
+  // 爱心粒子
+  for (let i = 0; i < 5; i++) {
+    islandState.particles.push({
+      type: 'heart',
+      x: puppy.x + (Math.random() - 0.5) * 0.1,
+      y: puppy.y - 0.05,
+      vx: (Math.random() - 0.5) * 0.05,
+      vy: -0.05 - Math.random() * 0.03,
+      life: 1.5,
+      emoji: ['💕', '❤️', '💖'][Math.floor(Math.random() * 3)],
+    });
+  }
+  
+  setTimeout(() => { puppy.state = 'idle'; }, 1500);
+  showInfo('💕 摸摸小狗~ +2经验');
+  savePuppyState();
+}
+
+function playWithPuppy() {
+  const puppy = islandState.puppy;
+  if (puppy.hunger < 20) {
+    showInfo('🐕 小狗太饿了，先喂食吧~');
+    return;
+  }
+  
+  puppy.mood = Math.min(100, puppy.mood + 15);
+  puppy.hunger = Math.max(0, puppy.hunger - 10);
+  puppy.love += 2;
+  puppy.exp += 10;
+  puppy.state = 'playing';
+  
+  // 玩耍动画 - 小狗跑来跑去
+  const playSequence = () => {
+    puppy.targetX = 0.2 + Math.random() * 0.6;
+    puppy.targetY = 0.35 + Math.random() * 0.35;
+    puppy.state = 'walking';
+  };
+  playSequence();
+  const interval = setInterval(playSequence, 800);
+  
+  setTimeout(() => {
+    clearInterval(interval);
+    puppy.state = 'happy';
+    setTimeout(() => { puppy.state = 'idle'; }, 1000);
+  }, 3000);
+  
+  showInfo('🎾 和小狗玩耍！+10经验');
   savePuppyState();
 }
 
 function savePuppyState() {
   SaveManager.data.puppy = { ...islandState.puppy };
+  SaveManager.data.islandBuildings = islandState.buildings;
+  SaveManager.data.islandDecorations = islandState.decorations;
   SaveManager.save();
 }
 
 function getPuppyEmoji() {
   const puppy = islandState.puppy;
-  if (puppy.state === 'happy') return '🐕';
   if (puppy.state === 'sleeping') return '😴';
-  if (puppy.hunger < 20) return '🐶'; // 饿了，可怜巴巴
-  if (puppy.mood < 30) return '🐕‍🦺';
+  if (puppy.state === 'eating') return '🐕';
+  if (puppy.state === 'playing' || puppy.state === 'happy') return '🐕';
+  if (puppy.hunger < 20) return '🥺'; // 饿了，可怜巴巴
+  if (puppy.mood < 30) return '😢';
+  if (puppy.state === 'walking') return '🐕';
   return '🐕';
 }
 
 function handleIslandTouch(x, y) {
   const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
-  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 55;
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
   
   // 返回按钮
-  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
+  if (x >= 15 && x <= 95 && y >= bottomY + 10 && y <= bottomY + 46) {
     savePuppyState();
     switchScene('MainMenu');
     return;
   }
   
-  const W = GameConfig.WIDTH;
-  const H = GameConfig.HEIGHT;
+  // 底部按钮区域
+  const btnWidth = (W - 50) / 3;
+  const btnY = bottomY - 45;
+  
+  // 喂食按钮
+  if (x >= 20 && x <= 20 + btnWidth && y >= btnY && y <= btnY + 40) {
+    feedPuppy();
+    return;
+  }
+  
+  // 玩耍按钮
+  if (x >= 25 + btnWidth && x <= 25 + btnWidth * 2 && y >= btnY && y <= btnY + 40) {
+    playWithPuppy();
+    return;
+  }
+  
+  // 装饰按钮
+  if (x >= 30 + btnWidth * 2 && x <= 30 + btnWidth * 3 && y >= btnY && y <= btnY + 40) {
+    showInfo('🏗️ 装饰功能开发中...');
+    return;
+  }
+  
   const centerX = W / 2;
   const centerY = H / 2;
   
   // 检测点击小狗
   const puppyScreenX = centerX + (islandState.puppy.x - 0.5) * 300;
-  const puppyScreenY = centerY + (islandState.puppy.y - 0.5) * 250;
+  const puppyScreenY = centerY + (islandState.puppy.y - 0.5) * 250 + 30;
   const puppyDist = Math.sqrt((x - puppyScreenX) ** 2 + (y - puppyScreenY) ** 2);
   
   if (puppyDist < 50) {
     petPuppy();
-    return;
-  }
-  
-  // 检测喂食按钮
-  if (x >= W - 90 && x <= W - 10 && y >= bottomY - 50 && y <= bottomY) {
-    feedPuppy();
     return;
   }
 }
@@ -2727,14 +2934,66 @@ function renderIslandScene() {
   const W = GameConfig.WIDTH;
   const H = GameConfig.HEIGHT;
   const centerX = W / 2;
-  const centerY = H / 2;
+  const centerY = H / 2 + 30; // 稍微下移给顶部UI留空间
   
-  // 海洋背景
-  const gradient = ctx.createLinearGradient(0, 0, 0, H * scale);
-  gradient.addColorStop(0, '#87CEEB');
-  gradient.addColorStop(1, '#1e90ff');
+  // 根据时间段设置背景色
+  let skyColor1, skyColor2, seaColor;
+  if (islandState.timeOfDay === 'day') {
+    skyColor1 = '#87CEEB';
+    skyColor2 = '#4fc3f7';
+    seaColor = '#1e90ff';
+  } else if (islandState.timeOfDay === 'evening') {
+    skyColor1 = '#ff7043';
+    skyColor2 = '#ffb74d';
+    seaColor = '#3d5afe';
+  } else {
+    skyColor1 = '#1a237e';
+    skyColor2 = '#311b92';
+    seaColor = '#0d47a1';
+  }
+  
+  // 天空背景
+  const gradient = ctx.createLinearGradient(0, 0, 0, H * 0.5 * scale);
+  gradient.addColorStop(0, skyColor1);
+  gradient.addColorStop(1, skyColor2);
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, W * scale, H * scale);
+  ctx.fillRect(0, 0, W * scale, H * 0.5 * scale);
+  
+  // 海洋
+  const seaGradient = ctx.createLinearGradient(0, H * 0.5 * scale, 0, H * scale);
+  seaGradient.addColorStop(0, seaColor);
+  seaGradient.addColorStop(1, '#0077be');
+  ctx.fillStyle = seaGradient;
+  ctx.fillRect(0, H * 0.5 * scale, W * scale, H * 0.5 * scale);
+  
+  // 太阳/月亮
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (islandState.timeOfDay === 'night') {
+    ctx.font = `${50 * scale}px sans-serif`;
+    ctx.fillText('🌙', (W - 60) * scale, 120 * scale);
+    // 星星
+    ctx.font = `${20 * scale}px sans-serif`;
+    ctx.globalAlpha = 0.7;
+    ctx.fillText('⭐', 50 * scale, 100 * scale);
+    ctx.fillText('✨', 150 * scale, 130 * scale);
+    ctx.fillText('⭐', 100 * scale, 180 * scale);
+    ctx.globalAlpha = 1;
+  } else if (islandState.timeOfDay === 'evening') {
+    ctx.font = `${60 * scale}px sans-serif`;
+    ctx.fillText('🌅', (W - 80) * scale, 140 * scale);
+  } else {
+    ctx.font = `${50 * scale}px sans-serif`;
+    ctx.fillText('☀️', (W - 60) * scale, 120 * scale);
+  }
+  
+  // 云朵
+  ctx.font = `${40 * scale}px sans-serif`;
+  ctx.globalAlpha = 0.7;
+  const cloudOffset = (Date.now() / 50000) % 1;
+  ctx.fillText('☁️', ((cloudOffset * W + 50) % (W + 100) - 50) * scale, 160 * scale);
+  ctx.fillText('☁️', ((cloudOffset * W + 200) % (W + 100) - 50) * scale, 200 * scale);
+  ctx.globalAlpha = 1;
   
   // 沙滩
   ctx.fillStyle = '#F4A460';
@@ -2743,19 +3002,63 @@ function renderIslandScene() {
   ctx.fill();
   
   // 草地
-  ctx.fillStyle = '#90EE90';
+  ctx.fillStyle = '#7cb342';
   ctx.beginPath();
   ctx.ellipse(centerX * scale, centerY * scale, 160 * scale, 130 * scale, 0, 0, Math.PI * 2);
   ctx.fill();
   
+  // 草地纹理
+  ctx.fillStyle = '#8bc34a';
+  ctx.beginPath();
+  ctx.ellipse(centerX * scale, (centerY - 20) * scale, 140 * scale, 100 * scale, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
   // 建筑
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
   for (const b of islandState.buildings) {
     const bx = centerX + (b.x - 0.5) * 300;
     const by = centerY + (b.y - 0.5) * 250;
+    
+    // 建筑阴影
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath();
+    ctx.ellipse(bx * scale, (by + 25) * scale, 25 * scale, 10 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
     ctx.font = `${50 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.fillText(b.emoji, bx * scale, by * scale);
+  }
+  
+  // 装饰物
+  for (const d of islandState.decorations) {
+    const dx = centerX + (d.x - 0.5) * 300;
+    const dy = centerY + (d.y - 0.5) * 250;
+    ctx.font = `${35 * scale}px sans-serif`;
+    ctx.fillText(d.emoji, dx * scale, dy * scale);
+  }
+  
+  // 环境粒子
+  for (const p of islandState.particles) {
+    if (p.type === 'food' && p.progress !== undefined) {
+      // 食物飞行动画
+      p.progress += 0.05;
+      const t = Math.min(1, p.progress);
+      const px = p.x + (p.targetX - p.x) * t;
+      const py = p.y + (p.targetY - p.y) * t - 0.1 * Math.sin(t * Math.PI);
+      const screenX = centerX + (px - 0.5) * 300;
+      const screenY = centerY + (py - 0.5) * 250;
+      ctx.font = `${30 * scale}px sans-serif`;
+      ctx.fillText(p.emoji, screenX * scale, screenY * scale);
+    } else {
+      const px = centerX + (p.x - 0.5) * 400;
+      const py = centerY + (p.y - 0.5) * 350 - 50;
+      const particleScale = p.type === 'celebration' ? 1.5 - p.life * 0.25 : 1;
+      ctx.globalAlpha = Math.min(1, p.life);
+      ctx.font = `${24 * particleScale * scale}px sans-serif`;
+      ctx.fillText(p.emoji, px * scale, py * scale);
+      ctx.globalAlpha = 1;
+    }
   }
   
   // 小狗
@@ -2766,22 +3069,54 @@ function renderIslandScene() {
   // 小狗阴影
   ctx.fillStyle = 'rgba(0,0,0,0.2)';
   ctx.beginPath();
-  ctx.ellipse(puppyX * scale, (puppyY + 20) * scale, 25 * scale, 10 * scale, 0, 0, Math.PI * 2);
+  ctx.ellipse(puppyX * scale, (puppyY + 25) * scale, 28 * scale, 12 * scale, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // 小狗本体
+  // 小狗本体 - 呼吸动画
+  const breathe = Math.sin(puppy.animTimer * 3) * 0.05;
+  let puppySize = 50;
+  if (puppy.state === 'happy') puppySize = 55 + Math.sin(puppy.animTimer * 10) * 5;
+  if (puppy.state === 'eating') puppySize = 50 + Math.abs(Math.sin(puppy.animTimer * 8)) * 8;
+  if (puppy.state === 'sleeping') puppySize = 45;
+  if (puppy.state === 'walking') puppySize = 48;
+  
   const puppyEmoji = getPuppyEmoji();
-  const puppySize = puppy.state === 'happy' ? 55 : 45;
-  ctx.font = `${puppySize * scale}px sans-serif`;
-  ctx.fillText(puppyEmoji, puppyX * scale, puppyY * scale);
+  ctx.font = `${(puppySize + breathe * 50) * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  // 走路时左右摇摆
+  if (puppy.state === 'walking') {
+    ctx.save();
+    ctx.translate(puppyX * scale, puppyY * scale);
+    ctx.rotate(Math.sin(puppy.animTimer * 15) * 0.1);
+    ctx.fillText(puppyEmoji, 0, 0);
+    ctx.restore();
+  } else {
+    ctx.fillText(puppyEmoji, puppyX * scale, puppyY * scale);
+  }
+  
+  // 小狗配饰
+  if (puppy.accessory) {
+    const acc = PUPPY_ACCESSORIES.find(a => a.id === puppy.accessory);
+    if (acc) {
+      ctx.font = `${20 * scale}px sans-serif`;
+      ctx.fillText(acc.emoji, (puppyX + 15) * scale, (puppyY - 20) * scale);
+    }
+  }
   
   // 小狗状态气泡
-  if (puppy.hunger < 30) {
+  if (puppy.state === 'sleeping') {
     ctx.font = `${20 * scale}px sans-serif`;
-    ctx.fillText('🍖❓', puppyX * scale, (puppyY - 40) * scale);
-  } else if (puppy.state === 'happy') {
-    ctx.font = `${20 * scale}px sans-serif`;
-    ctx.fillText('💕', puppyX * scale, (puppyY - 40) * scale);
+    const zzz = 'Z'.repeat(1 + Math.floor(puppy.animTimer % 3));
+    ctx.fillStyle = '#fff';
+    ctx.fillText(zzz, (puppyX + 30) * scale, (puppyY - 30) * scale);
+  } else if (puppy.hunger < 30) {
+    ctx.font = `${24 * scale}px sans-serif`;
+    ctx.fillText('🍖❓', puppyX * scale, (puppyY - 45) * scale);
+  } else if (puppy.state === 'happy' || puppy.state === 'eating') {
+    ctx.font = `${24 * scale}px sans-serif`;
+    ctx.fillText('💕', puppyX * scale, (puppyY - 45) * scale);
   }
   
   // 顶部状态栏
@@ -2794,63 +3129,112 @@ function renderIslandScene() {
   
   // 标题
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${28 * scale}px sans-serif`;
+  ctx.font = `bold ${24 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('🏝️ 我的小岛', centerX * scale, capsuleBottom * scale);
+  const timeEmoji = islandState.timeOfDay === 'night' ? '🌙' : islandState.timeOfDay === 'evening' ? '🌅' : '☀️';
+  ctx.fillText(`🏝️ 我的小岛 ${timeEmoji}`, centerX * scale, capsuleBottom * scale);
   
   // 小狗状态面板
-  const panelY = capsuleBottom + 30;
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  roundRect(15 * scale, panelY * scale, (W - 30) * scale, 70 * scale, 12 * scale);
+  const panelY = capsuleBottom + 25;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(15 * scale, panelY * scale, (W - 30) * scale, 85 * scale, 12 * scale);
   ctx.fill();
   
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${16 * scale}px sans-serif`;
+  ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'left';
-  ctx.fillText(`🐕 小狗`, 25 * scale, (panelY + 22) * scale);
-  ctx.fillText(`💕 好感: ${Math.floor(islandState.puppy.love)}`, 25 * scale, (panelY + 52) * scale);
+  
+  // 小狗名字和等级
+  ctx.fillText(`🐕 小狗 Lv.${puppy.level || 1}`, 25 * scale, (panelY + 18) * scale);
+  
+  // 经验条
+  const expNeeded = (puppy.level || 1) * 100;
+  const expRatio = (puppy.exp || 0) / expNeeded;
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  roundRect(100 * scale, (panelY + 10) * scale, 80 * scale, 12 * scale, 6 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#9c27b0';
+  roundRect(100 * scale, (panelY + 10) * scale, (80 * expRatio) * scale, 12 * scale, 6 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `${10 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`${puppy.exp || 0}/${expNeeded}`, 140 * scale, (panelY + 17) * scale);
+  
+  // 好感度
+  ctx.textAlign = 'left';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.fillText(`💕 ${Math.floor(puppy.love || 0)}`, 200 * scale, (panelY + 18) * scale);
   
   // 饱腹度条
-  ctx.fillText(`🍖`, (W / 2 - 20) * scale, (panelY + 22) * scale);
+  ctx.fillText(`🍖`, 25 * scale, (panelY + 42) * scale);
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  roundRect((W / 2 + 10) * scale, (panelY + 12) * scale, 100 * scale, 16 * scale, 8 * scale);
+  roundRect(50 * scale, (panelY + 34) * scale, 100 * scale, 14 * scale, 7 * scale);
   ctx.fill();
   ctx.fillStyle = puppy.hunger > 30 ? '#4CAF50' : '#ff5722';
-  roundRect((W / 2 + 10) * scale, (panelY + 12) * scale, (puppy.hunger) * scale, 16 * scale, 8 * scale);
+  roundRect(50 * scale, (panelY + 34) * scale, (puppy.hunger) * scale, 14 * scale, 7 * scale);
   ctx.fill();
   
   // 心情条
   ctx.fillStyle = '#fff';
-  ctx.fillText(`😊`, (W / 2 - 20) * scale, (panelY + 52) * scale);
+  ctx.fillText(`😊`, 170 * scale, (panelY + 42) * scale);
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  roundRect((W / 2 + 10) * scale, (panelY + 42) * scale, 100 * scale, 16 * scale, 8 * scale);
+  roundRect(195 * scale, (panelY + 34) * scale, 100 * scale, 14 * scale, 7 * scale);
   ctx.fill();
   ctx.fillStyle = puppy.mood > 30 ? '#2196F3' : '#ff9800';
-  roundRect((W / 2 + 10) * scale, (panelY + 42) * scale, (puppy.mood) * scale, 16 * scale, 8 * scale);
+  roundRect(195 * scale, (panelY + 34) * scale, (puppy.mood) * scale, 14 * scale, 7 * scale);
   ctx.fill();
   
-  // 底部按钮
-  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
-  const bottomY = H - Math.max(safeBottom, 15) - 45;
+  // 金币显示
+  const res = SaveManager.getResources();
+  ctx.fillStyle = '#ffd700';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText(`💰 ${res.coin}`, 25 * scale, (panelY + 68) * scale);
+  ctx.fillStyle = '#e1bee7';
+  ctx.fillText(`💎 ${res.diamond}`, 130 * scale, (panelY + 68) * scale);
   
-  // 返回按钮
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  // 底部按钮区
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const bottomY = H - Math.max(safeBottom, 15) - 55;
+  const btnWidth = (W - 50) / 3;
+  const btnY = bottomY - 45;
+  
+  // 喂食按钮
+  ctx.fillStyle = 'rgba(255,152,0,0.9)';
+  roundRect(20 * scale, btnY * scale, btnWidth * scale, 40 * scale, 10 * scale);
   ctx.fill();
   ctx.fillStyle = '#fff';
   ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('← 返回', 55 * scale, (bottomY + 18) * scale);
+  ctx.fillText('🍖 喂食', (20 + btnWidth / 2) * scale, (btnY + 15) * scale);
+  ctx.font = `${11 * scale}px sans-serif`;
+  ctx.fillText('10💰', (20 + btnWidth / 2) * scale, (btnY + 30) * scale);
   
-  // 喂食按钮
-  ctx.fillStyle = 'rgba(255,152,0,0.8)';
-  roundRect((W - 90) * scale, (bottomY - 50) * scale, 80 * scale, 40 * scale, 10 * scale);
+  // 玩耍按钮
+  ctx.fillStyle = 'rgba(76,175,80,0.9)';
+  roundRect((25 + btnWidth) * scale, btnY * scale, btnWidth * scale, 40 * scale, 10 * scale);
   ctx.fill();
   ctx.fillStyle = '#fff';
   ctx.font = `bold ${14 * scale}px sans-serif`;
-  ctx.fillText('🍖 喂食', (W - 50) * scale, (bottomY - 30) * scale);
-  ctx.font = `${11 * scale}px sans-serif`;
-  ctx.fillText('10💰', (W - 50) * scale, (bottomY - 12) * scale);
+  ctx.fillText('🎾 玩耍', (25 + btnWidth * 1.5) * scale, (btnY + 20) * scale);
+  
+  // 装饰按钮
+  ctx.fillStyle = 'rgba(156,39,176,0.9)';
+  roundRect((30 + btnWidth * 2) * scale, btnY * scale, btnWidth * scale, 40 * scale, 10 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText('🏗️ 装饰', (30 + btnWidth * 2.5) * scale, (btnY + 20) * scale);
+  
+  // 返回按钮
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  roundRect(15 * scale, (bottomY + 10) * scale, 80 * scale, 36 * scale, 10 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('← 返回', 55 * scale, (bottomY + 28) * scale);
+}
 }
 
 // ===================
