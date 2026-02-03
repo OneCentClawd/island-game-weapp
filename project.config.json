@@ -2,7 +2,7 @@
   "miniprogramRoot": "miniprogram/",
   "compileType": "miniprogram",
   "projectname": "island-game",
-  "appid": "wxXXXXXXXXXXXXXXXX",
+  "appid": "wxb94bbd6acccec202",
   "setting": {
     "es6": true,
     "enhance": true,
