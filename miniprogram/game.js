@@ -4127,19 +4127,17 @@ function purchaseShopItem(index) {
 function handleShopTouch(x, y) {
   const W = GameConfig.WIDTH;
   const H = GameConfig.HEIGHT;
-  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
-  const bottomY = H - Math.max(safeBottom, 15) - 45;
   
-  // 返回按钮
-  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
+  // 返回按钮 - 左上角
+  let capsuleBottom = 80;
+  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
+  const btnY = capsuleBottom - 20;
+  if (x >= 15 && x <= 85 && y >= btnY && y <= btnY + 34) {
     switchScene('MainMenu');
     return;
   }
   
   // 商品购买按钮
-  let capsuleBottom = 80;
-  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
-  
   const startY = capsuleBottom + 60;
   const cols = 2;
   const itemWidth = (W - 50) / cols;
@@ -4248,16 +4246,22 @@ function renderShopScene() {
     }
   });
   
-  // 返回按钮
-  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
-  const bottomY = H - Math.max(safeBottom, 15) - 45;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  // 返回按钮 - 左上角
+  const btnX = 15;
+  const btnY = capsuleBottom - 20;
+  const btnW = 70;
+  const btnH = 34;
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  roundRect((btnX + 2) * scale, (btnY + 2) * scale, btnW * scale, btnH * scale, 17 * scale);
   ctx.fill();
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  roundRect(btnX * scale, btnY * scale, btnW * scale, btnH * scale, 17 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#667eea';
   ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('← 返回', 55 * scale, (bottomY + 18) * scale);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('返回', (btnX + btnW / 2) * scale, (btnY + btnH / 2) * scale);
 }
 
 // ===================
