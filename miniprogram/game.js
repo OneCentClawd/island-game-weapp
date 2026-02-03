@@ -2824,7 +2824,7 @@ function handleLevelSelectTouch(x, y) {
   const cols = 4;
   const totalLevels = MATCH3_LEVELS.length;
   const btnRadius = Math.min(26, (W - 80) / (cols * 2 + 1));
-  const padding = btnRadius + 15;
+  const padding = btnRadius + 10;  // 边距更紧凑
   const spacingX = (W - padding * 2) / (cols - 1);
   const spacingY = btnRadius * 2 + 20;
   const startX = padding;
@@ -2885,8 +2885,8 @@ function renderLevelSelectScene() {
   const startY = capsuleBottom + 80;
   const cols = 4;
   const totalLevels = MATCH3_LEVELS.length;
-  const btnRadius = Math.min(26, (W - 80) / (cols * 2 + 1));  // 根据屏幕宽度计算
-  const padding = btnRadius + 15;  // 左右边距 = 按钮半径 + 间隙
+  const btnRadius = Math.min(26, (W - 80) / (cols * 2 + 1));
+  const padding = btnRadius + 10;  // 边距更紧凑
   const spacingX = (W - padding * 2) / (cols - 1);
   const spacingY = btnRadius * 2 + 20;
   const startX = padding;
