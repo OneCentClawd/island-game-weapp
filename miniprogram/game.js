@@ -233,25 +233,50 @@ const CloudService = {
 };
 
 // ===================
-// 存档管理
+// 存档管理（云端为主）
 // ===================
 const SaveManager = {
   data: null,
+  cloudReady: false,
+  saveTimeout: null,
   
-  init() {
-    this.load();
+  async init() {
+    // 先加载本地存档（快速显示）
+    this.loadLocal();
+    
+    // 然后尝试加载云端存档
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'savedata',
+        data: { action: 'load' }
+      });
+      
+      if (res.result && res.result.success && res.result.data) {
+        // 云端有数据，以云端为准
+        this.data = res.result.data;
+        this.saveLocal(); // 同步到本地
+        console.log('已从云端加载存档');
+      } else if (!this.data) {
+        // 云端没数据，本地也没有，创建新存档
+        this.createNew();
+      }
+      this.cloudReady = true;
+    } catch (e) {
+      console.error('云端存档加载失败，使用本地:', e);
+      if (!this.data) {
+        this.createNew();
+      }
+    }
   },
   
-  load() {
+  loadLocal() {
     try {
       const saved = wx.getStorageSync('island_game_save_v2');
       if (saved) {
         this.data = JSON.parse(saved);
-      } else {
-        this.createNew();
       }
     } catch (e) {
-      this.createNew();
+      console.error('本地存档加载失败:', e);
     }
   },
   
@@ -268,14 +293,49 @@ const SaveManager = {
       mergeItems: [],
       settings: { soundEnabled: true, musicEnabled: true },
       achievements: [],
+      achievementsClaimed: [],
       dailyTasks: { lastRefresh: 0, tasks: [], completed: [] },
       statistics: { totalMatches: 0, totalMerges: 0, totalCoins: 0 },
     };
     this.save();
   },
   
-  save() {
+  saveLocal() {
     wx.setStorageSync('island_game_save_v2', JSON.stringify(this.data));
+  },
+  
+  save() {
+    // 立即保存到本地
+    this.saveLocal();
+    
+    // 延迟保存到云端（防止频繁调用）
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+    this.saveTimeout = setTimeout(() => {
+      this.saveToCloud();
+    }, 2000); // 2秒后保存到云端
+  },
+  
+  async saveToCloud() {
+    try {
+      await wx.cloud.callFunction({
+        name: 'savedata',
+        data: { action: 'save', data: this.data }
+      });
+      console.log('存档已同步到云端');
+    } catch (e) {
+      console.error('云端保存失败:', e);
+    }
+  },
+  
+  // 强制立即同步到云端
+  async forceSaveToCloud() {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+    }
+    await this.saveToCloud();
   },
   
   getResources() { return this.data.resources; },
@@ -5284,6 +5344,31 @@ function updateAnimations(dt) {
 // ===================
 // 启动游戏
 // ===================
-SaveManager.init();
-switchScene('MainMenu');
-render();
+(async function startGame() {
+  // 先用本地数据快速启动
+  SaveManager.loadLocal();
+  if (!SaveManager.data) {
+    SaveManager.createNew();
+  }
+  
+  // 启动界面
+  switchScene('MainMenu');
+  render();
+  
+  // 后台加载云端存档
+  try {
+    const res = await wx.cloud.callFunction({
+      name: 'savedata',
+      data: { action: 'load' }
+    });
+    
+    if (res.result && res.result.success && res.result.data) {
+      SaveManager.data = res.result.data;
+      SaveManager.saveLocal();
+      SaveManager.cloudReady = true;
+      console.log('云端存档已同步');
+    }
+  } catch (e) {
+    console.error('云端存档加载失败:', e);
+  }
+})();
