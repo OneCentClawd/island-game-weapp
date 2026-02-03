@@ -274,10 +274,12 @@ function renderMainMenu() {
   const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
   
   // 获取胶囊按钮信息
-  let capsuleBottom = 80; // 默认值
+  let capsuleBottom = 80;
+  let capsuleLeft = W - 100; // 胶囊在右边
   try {
     const capsule = wx.getMenuButtonBoundingClientRect();
-    capsuleBottom = capsule.bottom + 15;
+    capsuleBottom = capsule.bottom + 10;
+    capsuleLeft = capsule.left;
   } catch (e) {}
   
   // 渐变背景
@@ -287,8 +289,18 @@ function renderMainMenu() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W * scale, H * scale);
   
-  // 游戏标题区域 - 从胶囊下方开始
-  const titleY = capsuleBottom + 40;
+  // 资源栏 - 放在胶囊左侧，和胶囊同一水平线
+  const resY = capsuleBottom - 25;
+  ctx.font = `bold ${13 * scale}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#fff';
+  // 只显示在胶囊左边的区域
+  ctx.fillText(`⚡${SaveManager.getEnergy()}`, 15 * scale, resY * scale);
+  ctx.fillText(`💰${SaveManager.getResources().coin}`, 80 * scale, resY * scale);
+  ctx.fillText(`💎${SaveManager.getResources().diamond}`, 150 * scale, resY * scale);
+  
+  // 游戏标题 - 从胶囊下方开始
+  const titleY = capsuleBottom + 30;
   ctx.font = `${70 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillText('🏝️', centerX * scale, titleY * scale);
@@ -299,32 +311,17 @@ function renderMainMenu() {
   ctx.shadowBlur = 5 * scale;
   ctx.shadowOffsetX = 2 * scale;
   ctx.shadowOffsetY = 2 * scale;
-  ctx.fillText('小岛物语', centerX * scale, (titleY + 75) * scale);
+  ctx.fillText('小岛物语', centerX * scale, (titleY + 80) * scale);
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
   
   ctx.fillStyle = '#ffe66d';
   ctx.font = `${16 * scale}px sans-serif`;
-  ctx.fillText('Island Story', centerX * scale, (titleY + 105) * scale);
-  
-  // 资源栏 - 放在标题下方
-  const resY = titleY + 135;
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  roundRect(20 * scale, (resY - 18) * scale, (W - 40) * scale, 36 * scale, 10 * scale);
-  ctx.fill();
-  
-  ctx.font = `bold ${14 * scale}px sans-serif`;
-  ctx.fillStyle = '#fff';
-  const resSpacing = (W - 60) / 5;
-  ctx.fillText(`⚡${SaveManager.getEnergy()}`, (30 + resSpacing * 0) * scale, resY * scale);
-  ctx.fillText(`💰${SaveManager.getResources().coin}`, (30 + resSpacing * 1) * scale, resY * scale);
-  ctx.fillText(`💎${SaveManager.getResources().diamond}`, (30 + resSpacing * 2) * scale, resY * scale);
-  ctx.fillText(`🏆`, (30 + resSpacing * 3) * scale, resY * scale);
-  ctx.fillText(`⚙️`, (30 + resSpacing * 4) * scale, resY * scale);
+  ctx.fillText('Island Story', centerX * scale, (titleY + 115) * scale);
   
   // 按钮区域
-  const btnStartY = resY + 45;
+  const btnStartY = titleY + 155;
   const btnEndY = H - safeBottom - 40;
   const btnCount = 5;
   const btnSpacing = Math.min(65, (btnEndY - btnStartY) / btnCount);
@@ -350,7 +347,6 @@ function renderMainMenu() {
     h: 48,
   }));
   mainMenuState.resY = resY;
-  mainMenuState.resSpacing = resSpacing;
   
   // 版本
   ctx.textAlign = 'center';
