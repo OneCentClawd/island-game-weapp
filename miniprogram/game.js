@@ -1277,16 +1277,31 @@ function drawShopperArea() {
     ctx.fillText(shopper.emoji, (cardX + 5) * scale, (cardY + 16) * scale);
     
     // 需要的物品
-    ctx.font = `${14 * scale}px sans-serif`;
     let wantX = cardX + 28;
     shopper.wants.forEach(want => {
       const item = ITEMS[want.key];
       if (item) {
         const hasCount = mergeState.items.filter(i => i.config.key === want.key).length;
-        const color = hasCount >= want.count ? '#4CAF50' : '#ff6b6b';
-        ctx.fillStyle = color;
-        ctx.fillText(`${item.emoji}${want.count > 1 ? 'x' + want.count : ''}`, wantX * scale, (cardY + 16) * scale);
-        wantX += 30;
+        const isFulfilled = hasCount >= want.count;
+        
+        // 物品emoji
+        ctx.font = `${16 * scale}px sans-serif`;
+        ctx.fillText(item.emoji, wantX * scale, (cardY + 16) * scale);
+        
+        // 数量 - 白色带黑色描边，更清晰
+        if (want.count > 1) {
+          ctx.font = `bold ${12 * scale}px sans-serif`;
+          const countText = `x${want.count}`;
+          const countX = wantX + 18;
+          // 描边
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 3 * scale;
+          ctx.strokeText(countText, countX * scale, (cardY + 16) * scale);
+          // 填充
+          ctx.fillStyle = isFulfilled ? '#4CAF50' : '#fff';
+          ctx.fillText(countText, countX * scale, (cardY + 16) * scale);
+        }
+        wantX += 35;
       }
     });
     
