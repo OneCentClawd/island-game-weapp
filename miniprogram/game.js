@@ -1,6 +1,6 @@
 /**
- * 小岛物语 - 微信小程序版
- * 完全复刻 Phaser 版本
+ * 小岛物语 - 微信小程序完整版
+ * 包含所有功能模块
  */
 
 // 加载适配器
@@ -10,10 +10,13 @@ require('./js/libs/weapp-adapter.js');
 const canvas = wx.createCanvas();
 const systemInfo = wx.getSystemInfoSync();
 
+// ===================
 // 游戏配置
+// ===================
 const GameConfig = {
   WIDTH: 720,
   HEIGHT: 1280,
+  VERSION: '0.3.0',
 };
 
 // 缩放适配
@@ -21,15 +24,28 @@ const scaleX = systemInfo.windowWidth / GameConfig.WIDTH;
 const scaleY = systemInfo.windowHeight / GameConfig.HEIGHT;
 const scale = Math.min(scaleX, scaleY);
 
-// 设置 canvas 尺寸
 canvas.width = systemInfo.windowWidth;
 canvas.height = systemInfo.windowHeight;
 
-// 获取 2D 上下文
 const ctx = canvas.getContext('2d');
 
 // ===================
-// 物品配置 (完全复刻)
+// 颜色配置
+// ===================
+const Colors = {
+  PRIMARY: '#4ecdc4',
+  SECONDARY: '#ffe66d',
+  ACCENT: '#ff6b6b',
+  BACKGROUND: '#f7fff7',
+  TEXT_DARK: '#2c3e50',
+  TEXT_LIGHT: '#ffffff',
+  
+  TIER: ['#607d8b', '#8d6e63', '#66bb6a', '#42a5f5', '#ab47bc', '#ffa726', '#ef5350', '#ec407a', '#ffee58'],
+  TIER_BADGE: ['#607d8b', '#795548', '#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#f44336', '#e91e63', '#ffc107'],
+};
+
+// ===================
+// 物品配置
 // ===================
 const ITEMS = {
   // 木材线 (8级)
@@ -106,7 +122,6 @@ const ITEMS = {
   'warehouse': { key: 'warehouse', name: '仓库', emoji: '🏪', tier: 0 },
 };
 
-// 仓库掉落物
 const WAREHOUSE_DROPS = [
   { key: 'wood1', weight: 22 },
   { key: 'stone1', weight: 22 },
@@ -117,233 +132,105 @@ const WAREHOUSE_DROPS = [
   { key: 'coin1', weight: 1 },
 ];
 
-// 颜色配置
-const TIER_COLORS = [
-  '#607d8b', '#8d6e63', '#66bb6a', '#42a5f5', 
-  '#ab47bc', '#ffa726', '#ef5350', '#ec407a', '#ffee58'
-];
-
-const TIER_BADGE_COLORS = [
-  '#607d8b', '#795548', '#4caf50', '#2196f3',
-  '#9c27b0', '#ff9800', '#f44336', '#e91e63', '#ffc107'
-];
-
-// ===================
-// 网格配置 (复刻)
-// ===================
-const GRID_COLS = 6;
-const GRID_ROWS = 7;
-const CELL_SIZE = 85;
-let gridOffsetX = 0;
-let gridOffsetY = 0;
-
-// 计算居中位置
-function calcGridPosition() {
-  const gridWidth = GRID_COLS * CELL_SIZE;
-  const gridHeight = GRID_ROWS * CELL_SIZE;
-  gridOffsetX = (GameConfig.WIDTH - gridWidth) / 2;
-  const availableHeight = GameConfig.HEIGHT - 120 - 100;
-  gridOffsetY = 120 + (availableHeight - gridHeight) / 2;
-}
-
-// ===================
-// 游戏状态
-// ===================
-let gameState = {
-  items: [],
-  energy: 10000,
-  maxEnergy: 10000,
-  coins: 500,
-  wood: 100,
-  stone: 50,
-  nextId: 1,
-  selectedItem: null,
+// 三消元素
+const MATCH3_ELEMENTS = ['wood', 'stone', 'coin', 'star', 'heart', 'diamond'];
+const MATCH3_EMOJIS = {
+  wood: '🪵',
+  stone: '🪨',
+  coin: '🪙',
+  star: '⭐',
+  heart: '❤️',
+  diamond: '💎',
+};
+const MATCH3_COLORS = {
+  wood: '#8B4513',
+  stone: '#808080',
+  coin: '#FFD700',
+  star: '#FFE66D',
+  heart: '#FF6B6B',
+  diamond: '#4ECDC4',
 };
 
 // ===================
 // 存档管理
 // ===================
-function saveGame() {
-  const saveData = {
-    items: gameState.items.map(i => ({ key: i.config.key, x: i.x, y: i.y })),
-    energy: gameState.energy,
-    coins: gameState.coins,
-    wood: gameState.wood,
-    stone: gameState.stone,
-    nextId: gameState.nextId,
-  };
-  wx.setStorageSync('island_game_merge', JSON.stringify(saveData));
-}
-
-function loadGame() {
-  try {
-    const data = wx.getStorageSync('island_game_merge');
-    if (data) {
-      const save = JSON.parse(data);
-      gameState.energy = save.energy !== undefined ? save.energy : 10000;
-      gameState.coins = save.coins !== undefined ? save.coins : 500;
-      gameState.wood = save.wood !== undefined ? save.wood : 100;
-      gameState.stone = save.stone !== undefined ? save.stone : 50;
-      gameState.nextId = save.nextId || 1;
-      gameState.items = [];
-      
-      if (save.items && save.items.length > 0) {
-        save.items.forEach(item => {
-          spawnItem(item.key, item.x, item.y, false);
-        });
-        return true;
+const SaveManager = {
+  data: null,
+  
+  init() {
+    this.load();
+  },
+  
+  load() {
+    try {
+      const saved = wx.getStorageSync('island_game_save_v2');
+      if (saved) {
+        this.data = JSON.parse(saved);
+      } else {
+        this.createNew();
       }
+    } catch (e) {
+      this.createNew();
     }
-  } catch (e) {
-    console.error('Load failed:', e);
-  }
-  return false;
-}
+  },
+  
+  createNew() {
+    this.data = {
+      version: 2,
+      resources: { wood: 100, stone: 50, coin: 500, diamond: 10 },
+      energy: 10000,
+      maxEnergy: 10000,
+      lastEnergyUpdate: Date.now(),
+      currentLevel: 1,
+      highestLevel: 1,
+      levelStars: {},
+      mergeItems: [],
+      settings: { soundEnabled: true, musicEnabled: true },
+      achievements: [],
+      dailyTasks: { lastRefresh: 0, tasks: [], completed: [] },
+      statistics: { totalMatches: 0, totalMerges: 0, totalCoins: 0 },
+    };
+    this.save();
+  },
+  
+  save() {
+    wx.setStorageSync('island_game_save_v2', JSON.stringify(this.data));
+  },
+  
+  getResources() { return this.data.resources; },
+  getEnergy() { return this.data.energy; },
+  
+  useEnergy(amount) {
+    if (this.data.energy >= amount) {
+      this.data.energy -= amount;
+      this.save();
+      return true;
+    }
+    return false;
+  },
+  
+  addCoins(amount) {
+    this.data.resources.coin += amount;
+    this.data.statistics.totalCoins += amount;
+    this.save();
+  },
+  
+  addResource(type, amount) {
+    if (this.data.resources[type] !== undefined) {
+      this.data.resources[type] += amount;
+      this.save();
+    }
+  },
+};
 
 // ===================
-// 游戏逻辑
+// 场景管理
 // ===================
-function getCellCenter(col, row) {
-  return {
-    x: gridOffsetX + col * CELL_SIZE + CELL_SIZE / 2,
-    y: gridOffsetY + row * CELL_SIZE + CELL_SIZE / 2,
-  };
-}
-
-function getItemAt(col, row) {
-  return gameState.items.find(i => i.x === col && i.y === row);
-}
-
-function findEmptyCell() {
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
-      if (!getItemAt(col, row)) {
-        return { col, row };
-      }
-    }
-  }
-  return null;
-}
-
-function spawnItem(key, col, row, animate = true) {
-  const config = ITEMS[key];
-  if (!config) return null;
-  
-  if (getItemAt(col, row)) {
-    const empty = findEmptyCell();
-    if (!empty) return null;
-    col = empty.col;
-    row = empty.row;
-  }
-  
-  const item = {
-    id: gameState.nextId++,
-    config: config,
-    x: col,
-    y: row,
-    scale: animate ? 0 : 1,
-    lastClickTime: 0,
-  };
-  
-  gameState.items.push(item);
-  return item;
-}
-
-function spawnWarehouse(col, row) {
-  return spawnItem('warehouse', col, row, false);
-}
-
-function removeItem(item) {
-  const index = gameState.items.findIndex(i => i.id === item.id);
-  if (index >= 0) {
-    gameState.items.splice(index, 1);
-  }
-}
-
-function clickWarehouse() {
-  // 先检查空位
-  const empty = findEmptyCell();
-  if (!empty) {
-    showInfo('❌ 没有空位了！先合成一些物品');
-    return;
-  }
-  
-  // 再检查体力
-  if (gameState.energy <= 0) {
-    showInfo('❌ 体力不足！');
-    return;
-  }
-  
-  gameState.energy--;
-  
-  // 随机选择物品
-  const total = WAREHOUSE_DROPS.reduce((sum, d) => sum + d.weight, 0);
-  let rand = Math.random() * total;
-  let selected = WAREHOUSE_DROPS[0].key;
-  
-  for (const drop of WAREHOUSE_DROPS) {
-    rand -= drop.weight;
-    if (rand <= 0) {
-      selected = drop.key;
-      break;
-    }
-  }
-  
-  const item = spawnItem(selected, empty.col, empty.row);
-  if (item) {
-    showInfo(`获得 ${item.config.emoji} ${item.config.name}！`);
-  }
-  saveGame();
-}
-
-function tryMerge(item1, item2) {
-  if (item1.config.key !== item2.config.key) return false;
-  if (!item1.config.mergeInto) return false;
-  
-  const newKey = item1.config.mergeInto;
-  const x = item2.x;
-  const y = item2.y;
-  
-  removeItem(item1);
-  removeItem(item2);
-  
-  const newItem = spawnItem(newKey, x, y);
-  if (newItem) {
-    showInfo(`✨ 合成了 ${newItem.config.emoji} ${newItem.config.name}！`);
-    // 创建合成特效
-    createMergeEffect(getCellCenter(x, y));
-  }
-  
-  saveGame();
-  return true;
-}
-
-function collectCoin(item) {
-  if (!item.config.value) return;
-  
-  gameState.coins += item.config.value;
-  removeItem(item);
-  showInfo(`💰 +${item.config.value} 金币！`);
-  saveGame();
-}
+let currentScene = 'MainMenu';
+let sceneData = {};
 
 // 特效
 let effects = [];
-
-function createMergeEffect(pos) {
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2;
-    effects.push({
-      x: pos.x,
-      y: pos.y,
-      vx: Math.cos(angle) * 3,
-      vy: Math.sin(angle) * 3,
-      life: 1,
-      emoji: '✨',
-    });
-  }
-}
-
 // 信息提示
 let infoMessage = '';
 let infoTimer = null;
@@ -351,69 +238,335 @@ let infoTimer = null;
 function showInfo(msg) {
   infoMessage = msg;
   if (infoTimer) clearTimeout(infoTimer);
-  infoTimer = setTimeout(() => {
-    infoMessage = '';
-  }, 2000);
+  infoTimer = setTimeout(() => { infoMessage = ''; }, 2000);
+}
+
+function switchScene(sceneName, data = {}) {
+  currentScene = sceneName;
+  sceneData = data;
+  effects = [];
+  
+  // 初始化场景
+  switch (sceneName) {
+    case 'MainMenu': initMainMenu(); break;
+    case 'Merge': initMergeScene(); break;
+    case 'Match3': initMatch3Scene(); break;
+    case 'Island': initIslandScene(); break;
+    case 'LevelSelect': initLevelSelectScene(); break;
+    case 'Shop': initShopScene(); break;
+    case 'Achievement': initAchievementScene(); break;
+    case 'DailyTask': initDailyTaskScene(); break;
+  }
 }
 
 // ===================
-// 触摸处理
+// 主菜单场景
 // ===================
-function handleTouch(touchX, touchY) {
-  // 转换到游戏坐标
-  const x = touchX / scale;
-  const y = touchY / scale;
+function initMainMenu() {
+  // 主菜单无需特殊初始化
+}
+
+function renderMainMenu() {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  const centerX = W / 2;
   
-  // 检查返回按钮
+  // 渐变背景
+  const gradient = ctx.createLinearGradient(0, 0, 0, H * scale);
+  gradient.addColorStop(0, '#4ecdc4');
+  gradient.addColorStop(1, '#44a08d');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, W * scale, H * scale);
+  
+  // 游戏标题
+  ctx.font = `${120 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🏝️', centerX * scale, 200 * scale);
+  
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${64 * scale}px sans-serif`;
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 5 * scale;
+  ctx.shadowOffsetX = 3 * scale;
+  ctx.shadowOffsetY = 3 * scale;
+  ctx.fillText('小岛物语', centerX * scale, 350 * scale);
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  
+  ctx.fillStyle = '#ffe66d';
+  ctx.font = `${24 * scale}px sans-serif`;
+  ctx.fillText('Island Story', centerX * scale, 420 * scale);
+  
+  // 按钮
+  const buttons = [
+    { y: 520, text: '🎮 消消乐', scene: 'LevelSelect' },
+    { y: 600, text: '🔄 合成模式', scene: 'Merge' },
+    { y: 680, text: '🏝️ 我的小岛', scene: 'Island' },
+    { y: 760, text: '📋 每日任务', scene: 'DailyTask' },
+    { y: 840, text: '🛒 商店', scene: 'Shop' },
+  ];
+  
+  buttons.forEach(btn => {
+    drawButton(centerX, btn.y, 280, 60, btn.text);
+  });
+  
+  // 右上角图标
+  ctx.font = `${36 * scale}px sans-serif`;
+  ctx.fillText('🏆', (W - 100) * scale, 100 * scale);
+  ctx.fillText('⚙️', (W - 50) * scale, 100 * scale);
+  
+  // 资源显示
+  const resources = SaveManager.getResources();
+  const energy = SaveManager.getEnergy();
+  ctx.font = `${18 * scale}px sans-serif`;
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'left';
+  
+  const resItems = [
+    { emoji: '⚡', value: energy },
+    { emoji: '💰', value: resources.coin },
+    { emoji: '💎', value: resources.diamond },
+    { emoji: '🪵', value: resources.wood },
+    { emoji: '🪨', value: resources.stone },
+  ];
+  
+  resItems.forEach((item, i) => {
+    ctx.fillText(`${item.emoji} ${item.value}`, (50 + i * 100) * scale, 100 * scale);
+  });
+  
+  // 版本
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = `${16 * scale}px sans-serif`;
+  ctx.fillText(`v${GameConfig.VERSION} - 开发中`, centerX * scale, (H - 50) * scale);
+}
+
+function handleMainMenuTouch(x, y) {
+  const centerX = GameConfig.WIDTH / 2;
+  
+  const buttons = [
+    { y: 520, scene: 'LevelSelect' },
+    { y: 600, scene: 'Merge' },
+    { y: 680, scene: 'Island' },
+    { y: 760, scene: 'DailyTask' },
+    { y: 840, scene: 'Shop' },
+  ];
+  
+  for (const btn of buttons) {
+    if (x >= centerX - 140 && x <= centerX + 140 && y >= btn.y - 30 && y <= btn.y + 30) {
+      switchScene(btn.scene);
+      return;
+    }
+  }
+  
+  // 成就图标
+  if (x >= GameConfig.WIDTH - 120 && x <= GameConfig.WIDTH - 80 && y >= 80 && y <= 120) {
+    switchScene('Achievement');
+  }
+}
+
+// ===================
+// 合成场景
+// ===================
+let mergeState = {
+  items: [],
+  selectedItem: null,
+  nextId: 1,
+  gridOffsetX: 0,
+  gridOffsetY: 0,
+};
+
+const MERGE_GRID = { cols: 6, rows: 7, cellSize: 85 };
+
+function initMergeScene() {
+  const gridWidth = MERGE_GRID.cols * MERGE_GRID.cellSize;
+  const gridHeight = MERGE_GRID.rows * MERGE_GRID.cellSize;
+  mergeState.gridOffsetX = (GameConfig.WIDTH - gridWidth) / 2;
+  const availableHeight = GameConfig.HEIGHT - 120 - 100;
+  mergeState.gridOffsetY = 120 + (availableHeight - gridHeight) / 2;
+  
+  mergeState.items = [];
+  mergeState.selectedItem = null;
+  mergeState.nextId = 1;
+  
+  // 加载存档
+  if (!loadMergeGame()) {
+    // 新游戏
+    spawnMergeItem('warehouse', 2, 3, false);
+    spawnMergeItem('wood1', 0, 0, false);
+    spawnMergeItem('wood1', 1, 0, false);
+    spawnMergeItem('stone1', 0, 1, false);
+    saveMergeGame();
+  }
+  
+  showInfo('点击仓库获取物品，点击两个相同物品合成！');
+}
+
+function saveMergeGame() {
+  SaveManager.data.mergeItems = mergeState.items.map(i => ({ key: i.config.key, x: i.x, y: i.y }));
+  SaveManager.save();
+}
+
+function loadMergeGame() {
+  const saved = SaveManager.data.mergeItems;
+  if (saved && saved.length > 0) {
+    saved.forEach(item => spawnMergeItem(item.key, item.x, item.y, false));
+    return true;
+  }
+  return false;
+}
+
+function getMergeCellCenter(col, row) {
+  return {
+    x: mergeState.gridOffsetX + col * MERGE_GRID.cellSize + MERGE_GRID.cellSize / 2,
+    y: mergeState.gridOffsetY + row * MERGE_GRID.cellSize + MERGE_GRID.cellSize / 2,
+  };
+}
+
+function getMergeItemAt(col, row) {
+  return mergeState.items.find(i => i.x === col && i.y === row);
+}
+
+function findMergeEmptyCell() {
+  for (let row = 0; row < MERGE_GRID.rows; row++) {
+    for (let col = 0; col < MERGE_GRID.cols; col++) {
+      if (!getMergeItemAt(col, row)) return { col, row };
+    }
+  }
+  return null;
+}
+
+function spawnMergeItem(key, col, row, animate = true) {
+  const config = ITEMS[key];
+  if (!config) return null;
+  
+  if (getMergeItemAt(col, row)) {
+    const empty = findMergeEmptyCell();
+    if (!empty) return null;
+    col = empty.col;
+    row = empty.row;
+  }
+  
+  const item = {
+    id: mergeState.nextId++,
+    config: config,
+    x: col,
+    y: row,
+    scale: animate ? 0 : 1,
+    lastClickTime: 0,
+  };
+  
+  mergeState.items.push(item);
+  return item;
+}
+
+function removeMergeItem(item) {
+  const index = mergeState.items.findIndex(i => i.id === item.id);
+  if (index >= 0) mergeState.items.splice(index, 1);
+}
+
+function clickWarehouse() {
+  const empty = findMergeEmptyCell();
+  if (!empty) { showInfo('❌ 没有空位了！'); return; }
+  if (!SaveManager.useEnergy(1)) { showInfo('❌ 体力不足！'); return; }
+  
+  const total = WAREHOUSE_DROPS.reduce((sum, d) => sum + d.weight, 0);
+  let rand = Math.random() * total;
+  let selected = WAREHOUSE_DROPS[0].key;
+  for (const drop of WAREHOUSE_DROPS) {
+    rand -= drop.weight;
+    if (rand <= 0) { selected = drop.key; break; }
+  }
+  
+  const item = spawnMergeItem(selected, empty.col, empty.row);
+  if (item) showInfo(`获得 ${item.config.emoji} ${item.config.name}！`);
+  saveMergeGame();
+}
+
+function tryMerge(item1, item2) {
+  if (item1.config.key !== item2.config.key) return false;
+  if (!item1.config.mergeInto) return false;
+  
+  const newKey = item1.config.mergeInto;
+  const x = item2.x, y = item2.y;
+  
+  removeMergeItem(item1);
+  removeMergeItem(item2);
+  
+  const newItem = spawnMergeItem(newKey, x, y);
+  if (newItem) {
+    showInfo(`✨ 合成了 ${newItem.config.emoji} ${newItem.config.name}！`);
+    createMergeEffect(getMergeCellCenter(x, y));
+    SaveManager.data.statistics.totalMerges++;
+  }
+  saveMergeGame();
+  return true;
+}
+
+function collectCoin(item) {
+  if (!item.config.value) return;
+  SaveManager.addCoins(item.config.value);
+  removeMergeItem(item);
+  showInfo(`💰 +${item.config.value} 金币！`);
+  saveMergeGame();
+}
+
+function createMergeEffect(pos) {
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    effects.push({
+      x: pos.x, y: pos.y,
+      vx: Math.cos(angle) * 3, vy: Math.sin(angle) * 3,
+      life: 1, emoji: '✨',
+    });
+  }
+}
+
+function handleMergeTouch(x, y) {
+  // 返回按钮
   if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
-    // 返回主菜单（小程序中可以考虑其他处理）
-    showInfo('小程序版暂无主菜单');
+    switchScene('MainMenu');
     return;
   }
   
-  // 检查点击了哪个物品
-  for (const item of gameState.items) {
-    const pos = getCellCenter(item.x, item.y);
+  for (const item of mergeState.items) {
+    const pos = getMergeCellCenter(item.x, item.y);
     const halfSize = 35 * item.scale;
     
     if (x >= pos.x - halfSize && x <= pos.x + halfSize &&
         y >= pos.y - halfSize && y <= pos.y + halfSize) {
       
-      // 仓库
       if (item.config.key === 'warehouse') {
         clickWarehouse();
-        gameState.selectedItem = null;
+        mergeState.selectedItem = null;
         return;
       }
       
-      // 金币 - 直接收集
       if (item.config.value && !item.config.mergeInto) {
         collectCoin(item);
-        gameState.selectedItem = null;
+        mergeState.selectedItem = null;
         return;
       }
       
       const now = Date.now();
       
-      if (gameState.selectedItem) {
-        if (gameState.selectedItem.id === item.id) {
-          // 双击检测 - 收集金币
+      if (mergeState.selectedItem) {
+        if (mergeState.selectedItem.id === item.id) {
           if (now - item.lastClickTime < 500 && item.config.value) {
             collectCoin(item);
-            gameState.selectedItem = null;
+            mergeState.selectedItem = null;
             return;
           }
-          // 取消选中
-          gameState.selectedItem = null;
-        } else if (tryMerge(gameState.selectedItem, item)) {
-          // 合成成功
-          gameState.selectedItem = null;
+          mergeState.selectedItem = null;
+        } else if (tryMerge(mergeState.selectedItem, item)) {
+          mergeState.selectedItem = null;
         } else {
-          // 选择新物品
-          gameState.selectedItem = item;
+          mergeState.selectedItem = item;
         }
       } else {
-        gameState.selectedItem = item;
+        mergeState.selectedItem = item;
       }
       
       item.lastClickTime = now;
@@ -421,46 +574,28 @@ function handleTouch(touchX, touchY) {
     }
   }
   
-  gameState.selectedItem = null;
+  mergeState.selectedItem = null;
 }
 
-wx.onTouchStart(function(e) {
-  if (e.touches.length > 0) {
-    const touch = e.touches[0];
-    handleTouch(touch.clientX, touch.clientY);
-  }
-});
-
-// ===================
-// 渲染
-// ===================
-function render() {
-  // 清屏并绘制背景
-  drawBackground();
-  
+function renderMergeScene() {
+  // 背景
+  drawMergeBackground();
   // 顶部UI
-  drawTopUI();
-  
+  drawMergeTopUI();
   // 网格
-  drawGrid();
-  
+  drawMergeGrid();
   // 物品
-  drawItems();
-  
+  drawMergeItems();
   // 特效
   drawEffects();
-  
-  // 底部信息栏
-  drawBottomUI();
-  
+  // 底部UI
+  drawBottomInfo();
   // 返回按钮
   drawBackButton();
-  
-  requestAnimationFrame(render);
 }
 
-function drawBackground() {
-  // 天空渐变
+function drawMergeBackground() {
+  // 天空
   for (let y = 0; y < GameConfig.HEIGHT / 2; y += 4) {
     const ratio = y / (GameConfig.HEIGHT / 2);
     const r = Math.floor(135 + (100 - 135) * ratio);
@@ -469,8 +604,7 @@ function drawBackground() {
     ctx.fillStyle = `rgb(${r},${g},${b})`;
     ctx.fillRect(0, y * scale, GameConfig.WIDTH * scale, 4 * scale);
   }
-  
-  // 草地渐变
+  // 草地
   for (let y = GameConfig.HEIGHT / 2; y < GameConfig.HEIGHT; y += 4) {
     const ratio = (y - GameConfig.HEIGHT / 2) / (GameConfig.HEIGHT / 2);
     const r = Math.floor(76 + (45 - 76) * ratio);
@@ -480,173 +614,118 @@ function drawBackground() {
     ctx.fillRect(0, y * scale, GameConfig.WIDTH * scale, 4 * scale);
   }
   
-  // 天空装饰
-  ctx.font = `${40 * scale}px sans-serif`;
+  // 装饰
   ctx.globalAlpha = 0.6;
+  ctx.font = `${40 * scale}px sans-serif`;
   ctx.fillText('☁️', 50 * scale, 180 * scale);
   ctx.fillText('☁️', 280 * scale, 200 * scale);
   ctx.fillText('☁️', 550 * scale, 175 * scale);
   ctx.globalAlpha = 0.8;
   ctx.font = `${50 * scale}px sans-serif`;
-  ctx.fillText('☀️', 650 * scale, 220 * scale);
-  ctx.globalAlpha = 1;
-  
-  // 草地装饰 (简化版)
+  ctx.fillText('☀️', 650 * scale, 180 * scale);
   ctx.globalAlpha = 0.7;
   ctx.font = `${50 * scale}px sans-serif`;
   ctx.fillText('🌳', 20 * scale, 700 * scale);
   ctx.fillText('🌴', 650 * scale, 720 * scale);
   ctx.fillText('🌲', 15 * scale, 1000 * scale);
   ctx.fillText('🌳', 640 * scale, 1020 * scale);
-  ctx.font = `${24 * scale}px sans-serif`;
-  ctx.fillText('🌸', 80 * scale, 750 * scale);
-  ctx.fillText('🌷', 620 * scale, 780 * scale);
-  ctx.fillText('🌻', 50 * scale, 900 * scale);
-  ctx.fillText('🌺', 660 * scale, 920 * scale);
-  ctx.fillText('🦋', 100 * scale, 850 * scale);
-  ctx.fillText('🐰', 600 * scale, 1050 * scale);
   ctx.globalAlpha = 1;
 }
 
-function drawTopUI() {
-  // 顶部面板背景
+function drawMergeTopUI() {
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   roundRect(10 * scale, 10 * scale, (GameConfig.WIDTH - 20) * scale, 110 * scale, 15 * scale);
   ctx.fill();
   
-  // 标题
   ctx.fillStyle = '#fff';
   ctx.font = `bold ${28 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('🏝️ 小岛物语', GameConfig.WIDTH / 2 * scale, 35 * scale);
   
-  // 资源条背景
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   roundRect(30 * scale, 67 * scale, (GameConfig.WIDTH - 60) * scale, 36 * scale, 10 * scale);
   ctx.fill();
   
-  // 体力
+  const res = SaveManager.getResources();
   ctx.font = `bold ${20 * scale}px sans-serif`;
   ctx.fillStyle = '#ffff00';
-  ctx.fillText(`⚡ ${gameState.energy}`, 100 * scale, 85 * scale);
-  
-  // 金币
+  ctx.fillText(`⚡ ${SaveManager.getEnergy()}`, 100 * scale, 85 * scale);
   ctx.fillStyle = '#ffd700';
-  ctx.fillText(`💰 ${gameState.coins}`, 250 * scale, 85 * scale);
-  
-  // 木材
+  ctx.fillText(`💰 ${res.coin}`, 250 * scale, 85 * scale);
   ctx.fillStyle = '#deb887';
-  ctx.fillText(`🪵 ${gameState.wood}`, 420 * scale, 85 * scale);
-  
-  // 石材
+  ctx.fillText(`🪵 ${res.wood}`, 420 * scale, 85 * scale);
   ctx.fillStyle = '#c0c0c0';
-  ctx.fillText(`🪨 ${gameState.stone}`, 570 * scale, 85 * scale);
+  ctx.fillText(`🪨 ${res.stone}`, 570 * scale, 85 * scale);
 }
 
-function drawGrid() {
-  // 网格整体背景
-  const gridWidth = GRID_COLS * CELL_SIZE;
-  const gridHeight = GRID_ROWS * CELL_SIZE;
+function drawMergeGrid() {
+  const gridWidth = MERGE_GRID.cols * MERGE_GRID.cellSize;
+  const gridHeight = MERGE_GRID.rows * MERGE_GRID.cellSize;
+  
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   roundRect(
-    (gridOffsetX - 10) * scale,
-    (gridOffsetY - 10) * scale,
+    (mergeState.gridOffsetX - 10) * scale,
+    (mergeState.gridOffsetY - 10) * scale,
     (gridWidth + 20) * scale,
     (gridHeight + 20) * scale,
     15 * scale
   );
   ctx.fill();
   
-  // 单元格
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
-      const x = gridOffsetX + col * CELL_SIZE;
-      const y = gridOffsetY + row * CELL_SIZE;
+  for (let row = 0; row < MERGE_GRID.rows; row++) {
+    for (let col = 0; col < MERGE_GRID.cols; col++) {
+      const x = mergeState.gridOffsetX + col * MERGE_GRID.cellSize;
+      const y = mergeState.gridOffsetY + row * MERGE_GRID.cellSize;
       
-      // 棋盘格效果
       const isLight = (row + col) % 2 === 0;
       ctx.fillStyle = isLight ? 'rgba(255,255,255,0.15)' : 'rgba(224,224,224,0.15)';
-      roundRect((x + 2) * scale, (y + 2) * scale, (CELL_SIZE - 4) * scale, (CELL_SIZE - 4) * scale, 8 * scale);
+      roundRect((x + 2) * scale, (y + 2) * scale, (MERGE_GRID.cellSize - 4) * scale, (MERGE_GRID.cellSize - 4) * scale, 8 * scale);
       ctx.fill();
       
-      // 边框
       ctx.strokeStyle = 'rgba(255,255,255,0.3)';
       ctx.lineWidth = 1 * scale;
-      roundRect((x + 2) * scale, (y + 2) * scale, (CELL_SIZE - 4) * scale, (CELL_SIZE - 4) * scale, 8 * scale);
+      roundRect((x + 2) * scale, (y + 2) * scale, (MERGE_GRID.cellSize - 4) * scale, (MERGE_GRID.cellSize - 4) * scale, 8 * scale);
       ctx.stroke();
     }
   }
 }
 
-function drawItems() {
-  for (const item of gameState.items) {
-    // 更新动画
-    if (item.scale < 1) {
-      item.scale = Math.min(1, item.scale + 0.1);
-    }
+function drawMergeItems() {
+  for (const item of mergeState.items) {
+    if (item.scale < 1) item.scale = Math.min(1, item.scale + 0.1);
     
-    const pos = getCellCenter(item.x, item.y);
+    const pos = getMergeCellCenter(item.x, item.y);
     const cardSize = 70 * item.scale;
     const halfCard = cardSize / 2;
     
     // 选中高亮
-    if (gameState.selectedItem && gameState.selectedItem.id === item.id) {
+    if (mergeState.selectedItem && mergeState.selectedItem.id === item.id) {
       ctx.strokeStyle = '#ffff00';
       ctx.lineWidth = 4 * scale;
-      roundRect(
-        (pos.x - halfCard - 5) * scale,
-        (pos.y - halfCard - 5) * scale,
-        (cardSize + 10) * scale,
-        (cardSize + 10) * scale,
-        18 * scale
-      );
+      roundRect((pos.x - halfCard - 5) * scale, (pos.y - halfCard - 5) * scale, (cardSize + 10) * scale, (cardSize + 10) * scale, 18 * scale);
       ctx.stroke();
     }
     
-    // 卡片阴影
+    // 阴影
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    roundRect(
-      (pos.x - halfCard + 4) * scale,
-      (pos.y - halfCard + 4) * scale,
-      cardSize * scale,
-      cardSize * scale,
-      16 * scale
-    );
+    roundRect((pos.x - halfCard + 4) * scale, (pos.y - halfCard + 4) * scale, cardSize * scale, cardSize * scale, 16 * scale);
     ctx.fill();
     
-    // 卡片背景
-    ctx.fillStyle = TIER_COLORS[item.config.tier] || '#607d8b';
-    roundRect(
-      (pos.x - halfCard) * scale,
-      (pos.y - halfCard) * scale,
-      cardSize * scale,
-      cardSize * scale,
-      16 * scale
-    );
+    // 背景
+    ctx.fillStyle = Colors.TIER[item.config.tier] || '#607d8b';
+    roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, cardSize * scale, cardSize * scale, 16 * scale);
     ctx.fill();
     
-    // 卡片边框
+    // 边框
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
     ctx.lineWidth = 3 * scale;
-    roundRect(
-      (pos.x - halfCard) * scale,
-      (pos.y - halfCard) * scale,
-      cardSize * scale,
-      cardSize * scale,
-      16 * scale
-    );
+    roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, cardSize * scale, cardSize * scale, 16 * scale);
     ctx.stroke();
     
-    // 内部高光
+    // 高光
     ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    roundRect(
-      (pos.x - halfCard + 6) * scale,
-      (pos.y - halfCard + 6) * scale,
-      (cardSize - 12) * scale,
-      (cardSize / 2 - 6) * scale,
-      10 * scale
-    );
+    roundRect((pos.x - halfCard + 6) * scale, (pos.y - halfCard + 6) * scale, (cardSize - 12) * scale, (cardSize / 2 - 6) * scale, 10 * scale);
     ctx.fill();
     
     // Emoji
@@ -667,7 +746,7 @@ function drawItems() {
       
       ctx.beginPath();
       ctx.arc(badgeX * scale, badgeY * scale, 12 * scale, 0, Math.PI * 2);
-      ctx.fillStyle = TIER_BADGE_COLORS[item.config.tier];
+      ctx.fillStyle = Colors.TIER_BADGE[item.config.tier];
       ctx.fill();
       
       ctx.fillStyle = '#fff';
@@ -675,6 +754,649 @@ function drawItems() {
       ctx.fillText(item.config.tier.toString(), badgeX * scale, badgeY * scale);
     }
   }
+}
+
+// ===================
+// 三消场景 (简化版)
+// ===================
+let match3State = {
+  board: [],
+  selectedTile: null,
+  score: 0,
+  moves: 20,
+  targetScore: 1000,
+  level: 1,
+  isProcessing: false,
+};
+
+const MATCH3_GRID = { cols: 8, rows: 8, tileSize: 80, offsetX: 40, offsetY: 300 };
+
+function initMatch3Scene() {
+  match3State.level = sceneData.level || 1;
+  match3State.score = 0;
+  match3State.moves = 20;
+  match3State.targetScore = 1000 + (match3State.level - 1) * 500;
+  match3State.selectedTile = null;
+  match3State.isProcessing = false;
+  
+  initMatch3Board();
+}
+
+function initMatch3Board() {
+  match3State.board = [];
+  for (let row = 0; row < MATCH3_GRID.rows; row++) {
+    match3State.board[row] = [];
+    for (let col = 0; col < MATCH3_GRID.cols; col++) {
+      let type;
+      do {
+        type = MATCH3_ELEMENTS[Math.floor(Math.random() * MATCH3_ELEMENTS.length)];
+      } while (wouldMatch(row, col, type));
+      match3State.board[row][col] = { type, row, col };
+    }
+  }
+}
+
+function wouldMatch(row, col, type) {
+  // 检查左边两个
+  if (col >= 2 && 
+      match3State.board[row][col-1]?.type === type && 
+      match3State.board[row][col-2]?.type === type) {
+    return true;
+  }
+  // 检查上边两个
+  if (row >= 2 && 
+      match3State.board[row-1]?.[col]?.type === type && 
+      match3State.board[row-2]?.[col]?.type === type) {
+    return true;
+  }
+  return false;
+}
+
+function getMatch3TileCenter(col, row) {
+  return {
+    x: MATCH3_GRID.offsetX + col * MATCH3_GRID.tileSize + MATCH3_GRID.tileSize / 2,
+    y: MATCH3_GRID.offsetY + row * MATCH3_GRID.tileSize + MATCH3_GRID.tileSize / 2,
+  };
+}
+
+function handleMatch3Touch(x, y) {
+  if (match3State.isProcessing) return;
+  
+  // 返回按钮
+  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+    switchScene('LevelSelect');
+    return;
+  }
+  
+  const col = Math.floor((x - MATCH3_GRID.offsetX) / MATCH3_GRID.tileSize);
+  const row = Math.floor((y - MATCH3_GRID.offsetY) / MATCH3_GRID.tileSize);
+  
+  if (col < 0 || col >= MATCH3_GRID.cols || row < 0 || row >= MATCH3_GRID.rows) {
+    match3State.selectedTile = null;
+    return;
+  }
+  
+  const tile = match3State.board[row][col];
+  if (!tile) return;
+  
+  if (match3State.selectedTile) {
+    const sel = match3State.selectedTile;
+    const dx = Math.abs(sel.col - col);
+    const dy = Math.abs(sel.row - row);
+    
+    if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+      // 交换
+      swapTiles(sel, tile);
+    } else {
+      match3State.selectedTile = tile;
+    }
+  } else {
+    match3State.selectedTile = tile;
+  }
+}
+
+function swapTiles(tile1, tile2) {
+  // 交换位置
+  const t1r = tile1.row, t1c = tile1.col;
+  const t2r = tile2.row, t2c = tile2.col;
+  
+  match3State.board[t1r][t1c] = tile2;
+  match3State.board[t2r][t2c] = tile1;
+  tile1.row = t2r; tile1.col = t2c;
+  tile2.row = t1r; tile2.col = t1c;
+  
+  // 检查匹配
+  const matches = findMatches();
+  if (matches.length > 0) {
+    match3State.moves--;
+    match3State.selectedTile = null;
+    processMatches(matches);
+  } else {
+    // 换回来
+    match3State.board[t1r][t1c] = tile1;
+    match3State.board[t2r][t2c] = tile2;
+    tile1.row = t1r; tile1.col = t1c;
+    tile2.row = t2r; tile2.col = t2c;
+    showInfo('无法消除！');
+  }
+}
+
+function findMatches() {
+  const matches = new Set();
+  
+  // 横向
+  for (let row = 0; row < MATCH3_GRID.rows; row++) {
+    for (let col = 0; col < MATCH3_GRID.cols - 2; col++) {
+      const t1 = match3State.board[row][col];
+      const t2 = match3State.board[row][col+1];
+      const t3 = match3State.board[row][col+2];
+      if (t1 && t2 && t3 && t1.type === t2.type && t2.type === t3.type) {
+        matches.add(t1); matches.add(t2); matches.add(t3);
+      }
+    }
+  }
+  
+  // 纵向
+  for (let row = 0; row < MATCH3_GRID.rows - 2; row++) {
+    for (let col = 0; col < MATCH3_GRID.cols; col++) {
+      const t1 = match3State.board[row][col];
+      const t2 = match3State.board[row+1][col];
+      const t3 = match3State.board[row+2][col];
+      if (t1 && t2 && t3 && t1.type === t2.type && t2.type === t3.type) {
+        matches.add(t1); matches.add(t2); matches.add(t3);
+      }
+    }
+  }
+  
+  return Array.from(matches);
+}
+
+function processMatches(matches) {
+  match3State.isProcessing = true;
+  
+  // 计分
+  match3State.score += matches.length * 10;
+  
+  // 移除匹配的方块
+  matches.forEach(tile => {
+    const pos = getMatch3TileCenter(tile.col, tile.row);
+    effects.push({ x: pos.x, y: pos.y, vx: 0, vy: -2, life: 1, emoji: '✨' });
+    match3State.board[tile.row][tile.col] = null;
+  });
+  
+  // 延迟处理下落
+  setTimeout(() => {
+    dropTiles();
+    fillBoard();
+    
+    const newMatches = findMatches();
+    if (newMatches.length > 0) {
+      setTimeout(() => processMatches(newMatches), 300);
+    } else {
+      match3State.isProcessing = false;
+      checkGameEnd();
+    }
+  }, 300);
+}
+
+function dropTiles() {
+  for (let col = 0; col < MATCH3_GRID.cols; col++) {
+    let emptyRow = MATCH3_GRID.rows - 1;
+    for (let row = MATCH3_GRID.rows - 1; row >= 0; row--) {
+      if (match3State.board[row][col]) {
+        if (row !== emptyRow) {
+          match3State.board[emptyRow][col] = match3State.board[row][col];
+          match3State.board[emptyRow][col].row = emptyRow;
+          match3State.board[row][col] = null;
+        }
+        emptyRow--;
+      }
+    }
+  }
+}
+
+function fillBoard() {
+  for (let col = 0; col < MATCH3_GRID.cols; col++) {
+    for (let row = 0; row < MATCH3_GRID.rows; row++) {
+      if (!match3State.board[row][col]) {
+        const type = MATCH3_ELEMENTS[Math.floor(Math.random() * MATCH3_ELEMENTS.length)];
+        match3State.board[row][col] = { type, row, col };
+      }
+    }
+  }
+}
+
+function checkGameEnd() {
+  if (match3State.score >= match3State.targetScore) {
+    showInfo('🎉 过关！');
+    SaveManager.data.highestLevel = Math.max(SaveManager.data.highestLevel, match3State.level + 1);
+    SaveManager.save();
+  } else if (match3State.moves <= 0) {
+    showInfo('😢 失败了，再试一次！');
+  }
+}
+
+function renderMatch3Scene() {
+  // 背景
+  const gradient = ctx.createLinearGradient(0, 0, 0, GameConfig.HEIGHT * scale);
+  gradient.addColorStop(0, '#2c3e50');
+  gradient.addColorStop(1, '#1a252f');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, GameConfig.WIDTH * scale, GameConfig.HEIGHT * scale);
+  
+  // 关卡信息
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${28 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`第 ${match3State.level} 关`, GameConfig.WIDTH / 2 * scale, 80 * scale);
+  
+  ctx.font = `${20 * scale}px sans-serif`;
+  ctx.fillStyle = '#4ecdc4';
+  ctx.fillText(`分数: ${match3State.score}`, (GameConfig.WIDTH / 2 - 100) * scale, 130 * scale);
+  ctx.fillStyle = '#ff6b6b';
+  ctx.fillText(`目标: ${match3State.targetScore}`, (GameConfig.WIDTH / 2 + 100) * scale, 130 * scale);
+  
+  ctx.fillStyle = '#ffe66d';
+  ctx.font = `bold ${48 * scale}px sans-serif`;
+  ctx.fillText(match3State.moves.toString(), GameConfig.WIDTH / 2 * scale, 220 * scale);
+  ctx.font = `${20 * scale}px sans-serif`;
+  ctx.fillText('剩余步数', GameConfig.WIDTH / 2 * scale, 260 * scale);
+  
+  // 棋盘背景
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  roundRect(
+    (MATCH3_GRID.offsetX - 10) * scale,
+    (MATCH3_GRID.offsetY - 10) * scale,
+    (MATCH3_GRID.cols * MATCH3_GRID.tileSize + 20) * scale,
+    (MATCH3_GRID.rows * MATCH3_GRID.tileSize + 20) * scale,
+    15 * scale
+  );
+  ctx.fill();
+  
+  // 方块
+  for (let row = 0; row < MATCH3_GRID.rows; row++) {
+    for (let col = 0; col < MATCH3_GRID.cols; col++) {
+      const tile = match3State.board[row][col];
+      if (!tile) continue;
+      
+      const pos = getMatch3TileCenter(col, row);
+      const size = MATCH3_GRID.tileSize - 8;
+      
+      // 选中高亮
+      if (match3State.selectedTile && match3State.selectedTile.row === row && match3State.selectedTile.col === col) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3 * scale;
+        roundRect((pos.x - size/2 - 3) * scale, (pos.y - size/2 - 3) * scale, (size + 6) * scale, (size + 6) * scale, 10 * scale);
+        ctx.stroke();
+      }
+      
+      // 方块背景
+      ctx.fillStyle = MATCH3_COLORS[tile.type];
+      roundRect((pos.x - size/2) * scale, (pos.y - size/2) * scale, size * scale, size * scale, 10 * scale);
+      ctx.fill();
+      
+      // Emoji
+      ctx.font = `${40 * scale}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(MATCH3_EMOJIS[tile.type], pos.x * scale, pos.y * scale);
+    }
+  }
+  
+  // 特效
+  drawEffects();
+  // 底部
+  drawBottomInfo();
+  drawBackButton();
+}
+
+// ===================
+// 关卡选择场景
+// ===================
+function initLevelSelectScene() {}
+
+function handleLevelSelectTouch(x, y) {
+  // 返回按钮
+  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+    switchScene('MainMenu');
+    return;
+  }
+  
+  // 关卡按钮
+  const startY = 200;
+  const cols = 5;
+  const spacing = 120;
+  const startX = (GameConfig.WIDTH - (cols - 1) * spacing) / 2;
+  
+  for (let i = 0; i < 20; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const lx = startX + col * spacing;
+    const ly = startY + row * spacing;
+    
+    if (x >= lx - 40 && x <= lx + 40 && y >= ly - 40 && y <= ly + 40) {
+      const level = i + 1;
+      if (level <= SaveManager.data.highestLevel) {
+        switchScene('Match3', { level });
+      } else {
+        showInfo('🔒 关卡未解锁');
+      }
+      return;
+    }
+  }
+}
+
+function renderLevelSelectScene() {
+  // 背景
+  const gradient = ctx.createLinearGradient(0, 0, 0, GameConfig.HEIGHT * scale);
+  gradient.addColorStop(0, '#667eea');
+  gradient.addColorStop(1, '#764ba2');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, GameConfig.WIDTH * scale, GameConfig.HEIGHT * scale);
+  
+  // 标题
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${36 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('选择关卡', GameConfig.WIDTH / 2 * scale, 100 * scale);
+  
+  // 关卡按钮
+  const startY = 200;
+  const cols = 5;
+  const spacing = 120;
+  const startX = (GameConfig.WIDTH - (cols - 1) * spacing) / 2;
+  
+  for (let i = 0; i < 20; i++) {
+    const level = i + 1;
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = startX + col * spacing;
+    const y = startY + row * spacing;
+    
+    const unlocked = level <= SaveManager.data.highestLevel;
+    const stars = SaveManager.data.levelStars[level] || 0;
+    
+    // 按钮背景
+    ctx.fillStyle = unlocked ? '#4ecdc4' : '#666';
+    ctx.beginPath();
+    ctx.arc(x * scale, y * scale, 40 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 关卡号或锁
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${24 * scale}px sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(unlocked ? level.toString() : '🔒', x * scale, y * scale);
+    
+    // 星星
+    if (unlocked && stars > 0) {
+      ctx.font = `${14 * scale}px sans-serif`;
+      ctx.fillText('⭐'.repeat(stars), x * scale, (y + 35) * scale);
+    }
+  }
+  
+  drawBackButton();
+}
+
+// ===================
+// 岛屿场景 (简化)
+// ===================
+function initIslandScene() {}
+
+function handleIslandTouch(x, y) {
+  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+    switchScene('MainMenu');
+    return;
+  }
+}
+
+function renderIslandScene() {
+  // 海洋背景
+  ctx.fillStyle = '#1e90ff';
+  ctx.fillRect(0, 0, GameConfig.WIDTH * scale, GameConfig.HEIGHT * scale);
+  
+  // 岛屿
+  ctx.fillStyle = '#90EE90';
+  ctx.beginPath();
+  ctx.ellipse(GameConfig.WIDTH / 2 * scale, GameConfig.HEIGHT / 2 * scale, 250 * scale, 200 * scale, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 沙滩
+  ctx.fillStyle = '#F4A460';
+  ctx.beginPath();
+  ctx.ellipse(GameConfig.WIDTH / 2 * scale, GameConfig.HEIGHT / 2 * scale, 270 * scale, 220 * scale, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#90EE90';
+  ctx.beginPath();
+  ctx.ellipse(GameConfig.WIDTH / 2 * scale, GameConfig.HEIGHT / 2 * scale, 240 * scale, 190 * scale, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 建筑
+  ctx.font = `${60 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('🏠', GameConfig.WIDTH / 2 * scale, GameConfig.HEIGHT / 2 * scale);
+  ctx.font = `${40 * scale}px sans-serif`;
+  ctx.fillText('🌴', (GameConfig.WIDTH / 2 - 100) * scale, (GameConfig.HEIGHT / 2 - 50) * scale);
+  ctx.fillText('🌳', (GameConfig.WIDTH / 2 + 100) * scale, (GameConfig.HEIGHT / 2 + 50) * scale);
+  
+  // 标题
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${36 * scale}px sans-serif`;
+  ctx.fillText('我的小岛', GameConfig.WIDTH / 2 * scale, 100 * scale);
+  
+  ctx.font = `${20 * scale}px sans-serif`;
+  ctx.fillText('(建设中...)', GameConfig.WIDTH / 2 * scale, 150 * scale);
+  
+  drawBackButton();
+}
+
+// ===================
+// 商店场景 (简化)
+// ===================
+function initShopScene() {}
+
+function handleShopTouch(x, y) {
+  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+    switchScene('MainMenu');
+    return;
+  }
+}
+
+function renderShopScene() {
+  const gradient = ctx.createLinearGradient(0, 0, 0, GameConfig.HEIGHT * scale);
+  gradient.addColorStop(0, '#f093fb');
+  gradient.addColorStop(1, '#f5576c');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, GameConfig.WIDTH * scale, GameConfig.HEIGHT * scale);
+  
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${36 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('🛒 商店', GameConfig.WIDTH / 2 * scale, 100 * scale);
+  
+  // 商品
+  const items = [
+    { emoji: '⚡', name: '体力 x100', price: '💎 10' },
+    { emoji: '💰', name: '金币 x1000', price: '💎 50' },
+    { emoji: '💎', name: '钻石 x100', price: '¥6' },
+    { emoji: '🎁', name: '新手礼包', price: '¥1' },
+  ];
+  
+  items.forEach((item, i) => {
+    const y = 200 + i * 120;
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    roundRect(50 * scale, y * scale, (GameConfig.WIDTH - 100) * scale, 100 * scale, 15 * scale);
+    ctx.fill();
+    
+    ctx.font = `${50 * scale}px sans-serif`;
+    ctx.fillText(item.emoji, 120 * scale, (y + 50) * scale);
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${24 * scale}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(item.name, 180 * scale, (y + 45) * scale);
+    ctx.font = `${20 * scale}px sans-serif`;
+    ctx.fillText(item.price, 180 * scale, (y + 75) * scale);
+    ctx.textAlign = 'center';
+  });
+  
+  drawBackButton();
+}
+
+// ===================
+// 成就场景 (简化)
+// ===================
+function initAchievementScene() {}
+
+function handleAchievementTouch(x, y) {
+  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+    switchScene('MainMenu');
+    return;
+  }
+}
+
+function renderAchievementScene() {
+  const gradient = ctx.createLinearGradient(0, 0, 0, GameConfig.HEIGHT * scale);
+  gradient.addColorStop(0, '#ffecd2');
+  gradient.addColorStop(1, '#fcb69f');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, GameConfig.WIDTH * scale, GameConfig.HEIGHT * scale);
+  
+  ctx.fillStyle = '#333';
+  ctx.font = `bold ${36 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('🏆 成就', GameConfig.WIDTH / 2 * scale, 100 * scale);
+  
+  const achievements = [
+    { emoji: '🌟', name: '初来乍到', desc: '完成第一关', done: SaveManager.data.highestLevel > 1 },
+    { emoji: '🔥', name: '连击大师', desc: '达成5连击', done: false },
+    { emoji: '💰', name: '小富翁', desc: '累计获得1000金币', done: SaveManager.data.statistics.totalCoins >= 1000 },
+    { emoji: '🔄', name: '合成新手', desc: '合成10次', done: SaveManager.data.statistics.totalMerges >= 10 },
+  ];
+  
+  achievements.forEach((a, i) => {
+    const y = 180 + i * 100;
+    ctx.fillStyle = a.done ? 'rgba(76,175,80,0.3)' : 'rgba(0,0,0,0.1)';
+    roundRect(50 * scale, y * scale, (GameConfig.WIDTH - 100) * scale, 80 * scale, 15 * scale);
+    ctx.fill();
+    
+    ctx.font = `${40 * scale}px sans-serif`;
+    ctx.fillText(a.emoji, 100 * scale, (y + 40) * scale);
+    
+    ctx.fillStyle = '#333';
+    ctx.font = `bold ${22 * scale}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(a.name, 150 * scale, (y + 35) * scale);
+    ctx.font = `${16 * scale}px sans-serif`;
+    ctx.fillText(a.desc, 150 * scale, (y + 60) * scale);
+    
+    if (a.done) {
+      ctx.fillStyle = '#4CAF50';
+      ctx.font = `${24 * scale}px sans-serif`;
+      ctx.textAlign = 'right';
+      ctx.fillText('✓', (GameConfig.WIDTH - 70) * scale, (y + 45) * scale);
+    }
+    ctx.textAlign = 'center';
+  });
+  
+  drawBackButton();
+}
+
+// ===================
+// 每日任务场景 (简化)
+// ===================
+function initDailyTaskScene() {}
+
+function handleDailyTaskTouch(x, y) {
+  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+    switchScene('MainMenu');
+    return;
+  }
+}
+
+function renderDailyTaskScene() {
+  const gradient = ctx.createLinearGradient(0, 0, 0, GameConfig.HEIGHT * scale);
+  gradient.addColorStop(0, '#a8edea');
+  gradient.addColorStop(1, '#fed6e3');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, GameConfig.WIDTH * scale, GameConfig.HEIGHT * scale);
+  
+  ctx.fillStyle = '#333';
+  ctx.font = `bold ${36 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('📋 每日任务', GameConfig.WIDTH / 2 * scale, 100 * scale);
+  
+  const tasks = [
+    { emoji: '🎮', name: '完成3关消消乐', reward: '💰 100', progress: '1/3' },
+    { emoji: '🔄', name: '合成20次', reward: '⚡ 50', progress: '5/20' },
+    { emoji: '💰', name: '收集500金币', reward: '💎 5', progress: '200/500' },
+  ];
+  
+  tasks.forEach((task, i) => {
+    const y = 180 + i * 120;
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    roundRect(50 * scale, y * scale, (GameConfig.WIDTH - 100) * scale, 100 * scale, 15 * scale);
+    ctx.fill();
+    
+    ctx.font = `${40 * scale}px sans-serif`;
+    ctx.fillText(task.emoji, 100 * scale, (y + 50) * scale);
+    
+    ctx.fillStyle = '#333';
+    ctx.font = `bold ${20 * scale}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(task.name, 150 * scale, (y + 40) * scale);
+    ctx.font = `${16 * scale}px sans-serif`;
+    ctx.fillText(`奖励: ${task.reward}`, 150 * scale, (y + 65) * scale);
+    ctx.fillText(`进度: ${task.progress}`, 150 * scale, (y + 85) * scale);
+    ctx.textAlign = 'center';
+  });
+  
+  drawBackButton();
+}
+
+// ===================
+// 通用UI组件
+// ===================
+function drawButton(x, y, w, h, text) {
+  ctx.fillStyle = '#ffe66d';
+  roundRect((x - w/2) * scale, (y - h/2) * scale, w * scale, h * scale, 10 * scale);
+  ctx.fill();
+  
+  ctx.strokeStyle = '#e6c84a';
+  ctx.lineWidth = 3 * scale;
+  roundRect((x - w/2) * scale, (y - h/2) * scale, w * scale, h * scale, 10 * scale);
+  ctx.stroke();
+  
+  ctx.fillStyle = '#2c3e50';
+  ctx.font = `bold ${24 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x * scale, y * scale);
+}
+
+function drawBackButton() {
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(15 * scale, (GameConfig.HEIGHT - 140) * scale, 90 * scale, 40 * scale, 10 * scale);
+  ctx.fill();
+  
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${18 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('← 返回', 60 * scale, (GameConfig.HEIGHT - 120) * scale);
+}
+
+function drawBottomInfo() {
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(20 * scale, (GameConfig.HEIGHT - 80) * scale, (GameConfig.WIDTH - 40) * scale, 50 * scale, 12 * scale);
+  ctx.fill();
+  
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${18 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const info = infoMessage || '';
+  ctx.fillText(info, GameConfig.WIDTH / 2 * scale, (GameConfig.HEIGHT - 55) * scale);
 }
 
 function drawEffects() {
@@ -691,39 +1413,12 @@ function drawEffects() {
     
     ctx.globalAlpha = e.life;
     ctx.font = `${24 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
     ctx.fillText(e.emoji, e.x * scale, e.y * scale);
     ctx.globalAlpha = 1;
   }
 }
 
-function drawBottomUI() {
-  // 底部信息栏
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(20 * scale, (GameConfig.HEIGHT - 80) * scale, (GameConfig.WIDTH - 40) * scale, 50 * scale, 12 * scale);
-  ctx.fill();
-  
-  ctx.fillStyle = '#fff';
-  ctx.font = `bold ${18 * scale}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const info = infoMessage || '点击仓库获取物品，点击两个相同物品合成！';
-  ctx.fillText(info, GameConfig.WIDTH / 2 * scale, (GameConfig.HEIGHT - 55) * scale);
-}
-
-function drawBackButton() {
-  // 返回按钮背景
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(15 * scale, (GameConfig.HEIGHT - 140) * scale, 90 * scale, 40 * scale, 10 * scale);
-  ctx.fill();
-  
-  ctx.fillStyle = '#fff';
-  ctx.font = `bold ${18 * scale}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('← 返回', 60 * scale, (GameConfig.HEIGHT - 120) * scale);
-}
-
-// 圆角矩形辅助函数
 function roundRect(x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -739,22 +1434,48 @@ function roundRect(x, y, w, h, r) {
 }
 
 // ===================
-// 游戏启动
+// 触摸处理
 // ===================
-function startGame() {
-  calcGridPosition();
-  
-  if (!loadGame()) {
-    // 新游戏 - 初始化
-    spawnWarehouse(2, 3);
-    spawnItem('wood1', 0, 0, false);
-    spawnItem('wood1', 1, 0, false);
-    spawnItem('stone1', 0, 1, false);
-    saveGame();
+wx.onTouchStart(function(e) {
+  if (e.touches.length > 0) {
+    const touch = e.touches[0];
+    const x = touch.clientX / scale;
+    const y = touch.clientY / scale;
+    
+    switch (currentScene) {
+      case 'MainMenu': handleMainMenuTouch(x, y); break;
+      case 'Merge': handleMergeTouch(x, y); break;
+      case 'Match3': handleMatch3Touch(x, y); break;
+      case 'LevelSelect': handleLevelSelectTouch(x, y); break;
+      case 'Island': handleIslandTouch(x, y); break;
+      case 'Shop': handleShopTouch(x, y); break;
+      case 'Achievement': handleAchievementTouch(x, y); break;
+      case 'DailyTask': handleDailyTaskTouch(x, y); break;
+    }
+  }
+});
+
+// ===================
+// 主渲染循环
+// ===================
+function render() {
+  switch (currentScene) {
+    case 'MainMenu': renderMainMenu(); break;
+    case 'Merge': renderMergeScene(); break;
+    case 'Match3': renderMatch3Scene(); break;
+    case 'LevelSelect': renderLevelSelectScene(); break;
+    case 'Island': renderIslandScene(); break;
+    case 'Shop': renderShopScene(); break;
+    case 'Achievement': renderAchievementScene(); break;
+    case 'DailyTask': renderDailyTaskScene(); break;
   }
   
-  showInfo('点击仓库获取物品，点击两个相同物品合成！');
-  render();
+  requestAnimationFrame(render);
 }
 
-startGame();
+// ===================
+// 启动游戏
+// ===================
+SaveManager.init();
+switchScene('MainMenu');
+render();
