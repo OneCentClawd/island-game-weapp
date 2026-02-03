@@ -299,6 +299,16 @@ function renderMainMenu() {
   ctx.fillText(`💰${SaveManager.getResources().coin}`, 80 * scale, resY * scale);
   ctx.fillText(`💎${SaveManager.getResources().diamond}`, 150 * scale, resY * scale);
   
+  // 成就和设置图标 - 放在标题下方右侧
+  const iconY = capsuleBottom + 15;
+  ctx.textAlign = 'center';
+  ctx.font = `${26 * scale}px sans-serif`;
+  ctx.fillText('🏆', (W - 70) * scale, iconY * scale);
+  ctx.fillText('⚙️', (W - 30) * scale, iconY * scale);
+  
+  // 保存图标位置
+  mainMenuState.iconY = iconY;
+  
   // 游戏标题 - 从胶囊下方开始
   const titleY = capsuleBottom + 80;
   ctx.font = `${70 * scale}px sans-serif`;
@@ -371,8 +381,16 @@ function handleMainMenuTouch(x, y) {
   }
   
   // 成就图标
-  if (x >= W - 110 && x <= W - 70 && y >= mainMenuState.resY - 15 && y <= mainMenuState.resY + 15) {
+  const iconY = mainMenuState.iconY || 100;
+  if (x >= W - 85 && x <= W - 55 && y >= iconY - 15 && y <= iconY + 15) {
     switchScene('Achievement');
+    return;
+  }
+  
+  // 设置图标
+  if (x >= W - 45 && x <= W - 15 && y >= iconY - 15 && y <= iconY + 15) {
+    showInfo('⚙️ 设置功能开发中...');
+    return;
   }
 }
 
