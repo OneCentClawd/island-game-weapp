@@ -2709,19 +2709,29 @@ function handleLevelSelectTouch(x, y) {
   }
   
   // 关卡按钮
-  const safeTop = systemInfo.safeArea ? systemInfo.safeArea.top : 40;
-  const startY = safeTop + 120;
-  const cols = 5;
-  const spacing = Math.min(70, (GameConfig.WIDTH - 60) / cols);
-  const startX = (GameConfig.WIDTH - (cols - 1) * spacing) / 2;
+  let capsuleBottom = 80;
+  try {
+    const capsule = wx.getMenuButtonBoundingClientRect();
+    capsuleBottom = capsule.bottom + 15;
+  } catch (e) {}
   
-  for (let i = 0; i < 50; i++) {
+  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
+  const startY = capsuleBottom + 80;
+  const endY = GameConfig.HEIGHT - safeBottom - 80;
+  const cols = 4;
+  const totalLevels = MATCH3_LEVELS.length;
+  const btnRadius = 26;
+  const spacingX = (GameConfig.WIDTH - 60) / (cols - 1);
+  const spacingY = Math.min(85, (endY - startY) / Math.min(Math.ceil(totalLevels / cols), 6));
+  const startX = 30 + btnRadius;
+  
+  for (let i = 0; i < totalLevels; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const lx = startX + col * spacing;
-    const ly = startY + row * spacing;
+    const lx = startX + col * spacingX;
+    const ly = startY + row * spacingY;
     
-    if (x >= lx - 30 && x <= lx + 30 && y >= ly - 30 && y <= ly + 30) {
+    if (x >= lx - btnRadius && x <= lx + btnRadius && y >= ly - btnRadius && y <= ly + btnRadius) {
       const level = i + 1;
       if (level <= SaveManager.data.highestLevel) {
         switchScene('Match3', { level });
@@ -2761,24 +2771,31 @@ function renderLevelSelectScene() {
   // 当前进度
   ctx.font = `${14 * scale}px sans-serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.fillText(`已解锁 ${SaveManager.data.highestLevel}/20 关`, W / 2 * scale, (capsuleBottom + 30) * scale);
+  ctx.fillText(`已解锁 ${SaveManager.data.highestLevel}/${MATCH3_LEVELS.length} 关`, W / 2 * scale, (capsuleBottom + 30) * scale);
   
   // 关卡按钮
   const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
-  const startY = capsuleBottom + 70;
-  const endY = H - safeBottom - 70;
-  const cols = 5;
-  const rows = 4;
-  const spacingX = Math.min(65, (W - 40) / cols);
-  const spacingY = Math.min(75, (endY - startY) / 10);
-  const startX = (W - (cols - 1) * spacingX) / 2;
+  const startY = capsuleBottom + 80;
+  const endY = H - safeBottom - 80;
+  const cols = 4;  // 每行4个，更宽敞
+  const totalLevels = MATCH3_LEVELS.length;
+  const totalRows = Math.ceil(totalLevels / cols);
   
-  for (let i = 0; i < 50; i++) {
+  // 计算合适的间距
+  const btnRadius = 26;
+  const spacingX = (W - 60) / (cols - 1);
+  const spacingY = Math.min(85, (endY - startY) / Math.min(totalRows, 6));
+  const startX = 30 + btnRadius;
+  
+  for (let i = 0; i < totalLevels; i++) {
     const level = i + 1;
     const col = i % cols;
     const row = Math.floor(i / cols);
     const x = startX + col * spacingX;
     const y = startY + row * spacingY;
+    
+    // 超出屏幕的不绘制（需要滚动功能，暂时只显示前几行）
+    if (y > endY + 50) continue;
     
     const unlocked = level <= SaveManager.data.highestLevel;
     const stars = SaveManager.data.levelStars[level] || 0;
@@ -2786,12 +2803,12 @@ function renderLevelSelectScene() {
     // 按钮阴影
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.arc((x + 2) * scale, (y + 2) * scale, 28 * scale, 0, Math.PI * 2);
+    ctx.arc((x + 2) * scale, (y + 2) * scale, btnRadius * scale, 0, Math.PI * 2);
     ctx.fill();
     
     // 按钮背景
     if (unlocked) {
-      const btnGradient = ctx.createRadialGradient(x * scale, y * scale, 0, x * scale, y * scale, 28 * scale);
+      const btnGradient = ctx.createRadialGradient(x * scale, y * scale, 0, x * scale, y * scale, btnRadius * scale);
       btnGradient.addColorStop(0, '#5ee7df');
       btnGradient.addColorStop(1, '#4ecdc4');
       ctx.fillStyle = btnGradient;
@@ -2799,27 +2816,29 @@ function renderLevelSelectScene() {
       ctx.fillStyle = '#555';
     }
     ctx.beginPath();
-    ctx.arc(x * scale, y * scale, 28 * scale, 0, Math.PI * 2);
+    ctx.arc(x * scale, y * scale, btnRadius * scale, 0, Math.PI * 2);
     ctx.fill();
     
     // 边框
     ctx.strokeStyle = unlocked ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)';
     ctx.lineWidth = 2 * scale;
     ctx.beginPath();
-    ctx.arc(x * scale, y * scale, 28 * scale, 0, Math.PI * 2);
+    ctx.arc(x * scale, y * scale, btnRadius * scale, 0, Math.PI * 2);
     ctx.stroke();
     
     // 关卡号或锁
     ctx.fillStyle = '#fff';
-    ctx.font = `bold ${20 * scale}px sans-serif`;
+    ctx.font = `bold ${18 * scale}px sans-serif`;
     ctx.textBaseline = 'middle';
-    ctx.fillText(unlocked ? level.toString() : '🔒', x * scale, y * scale);
-    
-    // 星星
     if (unlocked) {
-      ctx.font = `${12 * scale}px sans-serif`;
+      ctx.fillText(level.toString(), x * scale, (y - 4) * scale);
+      // 星星 - 在按钮下方
+      ctx.font = `${10 * scale}px sans-serif`;
       const starStr = (stars >= 1 ? '⭐' : '☆') + (stars >= 2 ? '⭐' : '☆') + (stars >= 3 ? '⭐' : '☆');
-      ctx.fillText(starStr, x * scale, (y + 32) * scale);
+      ctx.fillText(starStr, x * scale, (y + 14) * scale);
+    } else {
+      ctx.font = `${20 * scale}px sans-serif`;
+      ctx.fillText('🔒', x * scale, y * scale);
     }
   }
   
