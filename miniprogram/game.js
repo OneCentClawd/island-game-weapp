@@ -243,10 +243,6 @@ function showInfo(msg) {
 // 触摸处理
 // ===================
 function handleTouch(x, y) {
-  // 转换坐标
-  x = x / scale;
-  y = y / scale;
-  
   // 检查点击了哪个物品
   for (const item of gameState.items) {
     const pos = getCellCenter(item.x, item.y);
@@ -282,10 +278,14 @@ function handleTouch(x, y) {
   gameState.selectedItem = null;
 }
 
-wx.onTouchEnd(function(e) {
-  if (e.changedTouches.length > 0) {
-    const touch = e.changedTouches[0];
-    handleTouch(touch.clientX, touch.clientY);
+// 触摸事件
+wx.onTouchStart(function(e) {
+  if (e.touches.length > 0) {
+    const touch = e.touches[0];
+    // 坐标转换：触摸坐标 -> 游戏坐标
+    const x = touch.clientX / scale;
+    const y = touch.clientY / scale;
+    handleTouch(x, y);
   }
 });
 
