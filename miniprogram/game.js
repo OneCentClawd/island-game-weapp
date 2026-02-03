@@ -273,7 +273,13 @@ function renderMainMenu() {
   // 安全区域
   const safeTop = systemInfo.safeArea ? systemInfo.safeArea.top : 40;
   const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
-  const menuBarHeight = systemInfo.statusBarHeight || 20;
+  
+  // 获取胶囊按钮信息，整体内容从胶囊下方开始
+  let capsuleBottom = safeTop + 50; // 默认值
+  try {
+    const capsule = wx.getMenuButtonBoundingClientRect();
+    capsuleBottom = capsule.bottom + 10; // 胶囊底部 + 间距
+  } catch (e) {}
   
   // 渐变背景
   const gradient = ctx.createLinearGradient(0, 0, 0, H * scale);
@@ -282,8 +288,8 @@ function renderMainMenu() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W * scale, H * scale);
   
-  // 顶部资源栏 - 放在安全区域下方
-  const resY = safeTop + 25;
+  // 顶部资源栏 - 放在胶囊下方
+  const resY = capsuleBottom + 10;
   ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'left';
   ctx.fillStyle = '#fff';
@@ -291,14 +297,14 @@ function renderMainMenu() {
   ctx.fillText(`💰${SaveManager.getResources().coin}`, 85 * scale, resY * scale);
   ctx.fillText(`💎${SaveManager.getResources().diamond}`, 155 * scale, resY * scale);
   
-  // 右上角图标 - 避开胶囊按钮
+  // 右上角图标
   ctx.textAlign = 'center';
   ctx.font = `${28 * scale}px sans-serif`;
   ctx.fillText('🏆', (W - 90) * scale, resY * scale);
   ctx.fillText('⚙️', (W - 45) * scale, resY * scale);
   
-  // 游戏标题 - 位置根据屏幕高度调整
-  const titleY = safeTop + 80;
+  // 游戏标题 - 从资源栏下方开始
+  const titleY = resY + 50;
   ctx.font = `${80 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillText('🏝️', centerX * scale, titleY * scale);
