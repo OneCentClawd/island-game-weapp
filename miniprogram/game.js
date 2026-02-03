@@ -1923,6 +1923,7 @@ function swapTiles(tile1, tile2) {
     match3State.board[t2r][t2c] = tile2;
     tile1.row = t1r; tile1.col = t1c;
     tile2.row = t2r; tile2.col = t2c;
+    match3State.selectedTile = null;  // 重置选中状态
     showInfo('无法消除！');
   }
 }
