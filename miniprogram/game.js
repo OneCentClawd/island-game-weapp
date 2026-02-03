@@ -11,18 +11,16 @@ const canvas = wx.createCanvas();
 const systemInfo = wx.getSystemInfoSync();
 
 // ===================
-// 游戏配置
+// 游戏配置 - 直接使用屏幕尺寸
 // ===================
 const GameConfig = {
-  WIDTH: 720,
-  HEIGHT: 1280,
+  WIDTH: systemInfo.windowWidth,
+  HEIGHT: systemInfo.windowHeight,
   VERSION: '0.3.0',
 };
 
-// 缩放适配
-const scaleX = systemInfo.windowWidth / GameConfig.WIDTH;
-const scaleY = systemInfo.windowHeight / GameConfig.HEIGHT;
-const scale = Math.min(scaleX, scaleY);
+// 不缩放，直接 1:1
+const scale = 1;
 
 canvas.width = systemInfo.windowWidth;
 canvas.height = systemInfo.windowHeight;
@@ -378,17 +376,30 @@ let mergeState = {
   gridOffsetY: 0,
 };
 
-const MERGE_GRID = { cols: 6, rows: 8, cellSize: 80 };
+const MERGE_GRID = { 
+  cols: 6, 
+  rows: 8, 
+  get cellSize() {
+    // 根据屏幕宽度计算格子大小，留出左右边距
+    return Math.floor((GameConfig.WIDTH - 40) / this.cols);
+  }
+};
 
 function initMergeScene() {
-  const gridWidth = MERGE_GRID.cols * MERGE_GRID.cellSize;
-  const gridHeight = MERGE_GRID.rows * MERGE_GRID.cellSize;
+  const cellSize = MERGE_GRID.cellSize;
+  const gridWidth = MERGE_GRID.cols * cellSize;
+  const gridHeight = MERGE_GRID.rows * cellSize;
   mergeState.gridOffsetX = (GameConfig.WIDTH - gridWidth) / 2;
-  // 顶部UI 100px，底部 80px，网格居中
-  const topMargin = 110;
-  const bottomMargin = 90;
+  // 顶部UI 80px，底部 70px，网格居中
+  const topMargin = 85;
+  const bottomMargin = 75;
   const availableHeight = GameConfig.HEIGHT - topMargin - bottomMargin;
   mergeState.gridOffsetY = topMargin + (availableHeight - gridHeight) / 2;
+  
+  // 如果网格太高，调整行数
+  if (mergeState.gridOffsetY < topMargin) {
+    mergeState.gridOffsetY = topMargin;
+  }
   
   mergeState.items = [];
   mergeState.selectedItem = null;
@@ -422,9 +433,10 @@ function loadMergeGame() {
 }
 
 function getMergeCellCenter(col, row) {
+  const cellSize = MERGE_GRID.cellSize;
   return {
-    x: mergeState.gridOffsetX + col * MERGE_GRID.cellSize + MERGE_GRID.cellSize / 2,
-    y: mergeState.gridOffsetY + row * MERGE_GRID.cellSize + MERGE_GRID.cellSize / 2,
+    x: mergeState.gridOffsetX + col * cellSize + cellSize / 2,
+    y: mergeState.gridOffsetY + row * cellSize + cellSize / 2,
   };
 }
 
@@ -534,15 +546,18 @@ function createMergeEffect(pos) {
 }
 
 function handleMergeTouch(x, y) {
+  const cellSize = MERGE_GRID.cellSize;
+  const cardSize = cellSize - 12;
+  
   // 返回按钮
-  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 140 && y <= GameConfig.HEIGHT - 100) {
+  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 65 && y <= GameConfig.HEIGHT - 25) {
     switchScene('MainMenu');
     return;
   }
   
   for (const item of mergeState.items) {
     const pos = getMergeCellCenter(item.x, item.y);
-    const halfSize = 35 * item.scale;
+    const halfSize = (cardSize / 2) * item.scale;
     
     if (x >= pos.x - halfSize && x <= pos.x + halfSize &&
         y >= pos.y - halfSize && y <= pos.y + halfSize) {
@@ -692,97 +707,103 @@ function drawMergeTopUI() {
 }
 
 function drawMergeGrid() {
-  const gridWidth = MERGE_GRID.cols * MERGE_GRID.cellSize;
-  const gridHeight = MERGE_GRID.rows * MERGE_GRID.cellSize;
+  const cellSize = MERGE_GRID.cellSize;
+  const gridWidth = MERGE_GRID.cols * cellSize;
+  const gridHeight = MERGE_GRID.rows * cellSize;
   
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   roundRect(
-    (mergeState.gridOffsetX - 10) * scale,
-    (mergeState.gridOffsetY - 10) * scale,
-    (gridWidth + 20) * scale,
-    (gridHeight + 20) * scale,
-    15 * scale
+    (mergeState.gridOffsetX - 8) * scale,
+    (mergeState.gridOffsetY - 8) * scale,
+    (gridWidth + 16) * scale,
+    (gridHeight + 16) * scale,
+    12 * scale
   );
   ctx.fill();
   
   for (let row = 0; row < MERGE_GRID.rows; row++) {
     for (let col = 0; col < MERGE_GRID.cols; col++) {
-      const x = mergeState.gridOffsetX + col * MERGE_GRID.cellSize;
-      const y = mergeState.gridOffsetY + row * MERGE_GRID.cellSize;
+      const x = mergeState.gridOffsetX + col * cellSize;
+      const y = mergeState.gridOffsetY + row * cellSize;
       
       const isLight = (row + col) % 2 === 0;
       ctx.fillStyle = isLight ? 'rgba(255,255,255,0.15)' : 'rgba(224,224,224,0.15)';
-      roundRect((x + 2) * scale, (y + 2) * scale, (MERGE_GRID.cellSize - 4) * scale, (MERGE_GRID.cellSize - 4) * scale, 8 * scale);
+      roundRect((x + 2) * scale, (y + 2) * scale, (cellSize - 4) * scale, (cellSize - 4) * scale, 6 * scale);
       ctx.fill();
       
       ctx.strokeStyle = 'rgba(255,255,255,0.3)';
       ctx.lineWidth = 1 * scale;
-      roundRect((x + 2) * scale, (y + 2) * scale, (MERGE_GRID.cellSize - 4) * scale, (MERGE_GRID.cellSize - 4) * scale, 8 * scale);
+      roundRect((x + 2) * scale, (y + 2) * scale, (cellSize - 4) * scale, (cellSize - 4) * scale, 6 * scale);
       ctx.stroke();
     }
   }
 }
 
 function drawMergeItems() {
+  const cellSize = MERGE_GRID.cellSize;
+  const cardSize = cellSize - 12; // 卡片比格子小一点
+  
   for (const item of mergeState.items) {
     if (item.scale < 1) item.scale = Math.min(1, item.scale + 0.1);
     
     const pos = getMergeCellCenter(item.x, item.y);
-    const cardSize = 70 * item.scale;
-    const halfCard = cardSize / 2;
+    const currentCardSize = cardSize * item.scale;
+    const halfCard = currentCardSize / 2;
     
     // 选中高亮
     if (mergeState.selectedItem && mergeState.selectedItem.id === item.id) {
       ctx.strokeStyle = '#ffff00';
-      ctx.lineWidth = 4 * scale;
-      roundRect((pos.x - halfCard - 5) * scale, (pos.y - halfCard - 5) * scale, (cardSize + 10) * scale, (cardSize + 10) * scale, 18 * scale);
+      ctx.lineWidth = 3 * scale;
+      roundRect((pos.x - halfCard - 4) * scale, (pos.y - halfCard - 4) * scale, (currentCardSize + 8) * scale, (currentCardSize + 8) * scale, 14 * scale);
       ctx.stroke();
     }
     
     // 阴影
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    roundRect((pos.x - halfCard + 4) * scale, (pos.y - halfCard + 4) * scale, cardSize * scale, cardSize * scale, 16 * scale);
+    roundRect((pos.x - halfCard + 3) * scale, (pos.y - halfCard + 3) * scale, currentCardSize * scale, currentCardSize * scale, 12 * scale);
     ctx.fill();
     
     // 背景
     ctx.fillStyle = Colors.TIER[item.config.tier] || '#607d8b';
-    roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, cardSize * scale, cardSize * scale, 16 * scale);
+    roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, currentCardSize * scale, currentCardSize * scale, 12 * scale);
     ctx.fill();
     
     // 边框
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = 3 * scale;
-    roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, cardSize * scale, cardSize * scale, 16 * scale);
+    ctx.lineWidth = 2 * scale;
+    roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, currentCardSize * scale, currentCardSize * scale, 12 * scale);
     ctx.stroke();
     
     // 高光
     ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    roundRect((pos.x - halfCard + 6) * scale, (pos.y - halfCard + 6) * scale, (cardSize - 12) * scale, (cardSize / 2 - 6) * scale, 10 * scale);
+    roundRect((pos.x - halfCard + 4) * scale, (pos.y - halfCard + 4) * scale, (currentCardSize - 8) * scale, (currentCardSize / 2 - 4) * scale, 8 * scale);
     ctx.fill();
     
-    // Emoji
-    ctx.font = `${36 * item.scale * scale}px sans-serif`;
+    // Emoji - 大小根据卡片调整
+    const emojiSize = Math.floor(cardSize * 0.55);
+    ctx.font = `${emojiSize * item.scale * scale}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(item.config.emoji, pos.x * scale, pos.y * scale);
     
     // 等级徽章
     if (item.config.tier > 0) {
-      const badgeX = pos.x + halfCard - 8;
-      const badgeY = pos.y - halfCard + 8;
+      const badgeSize = Math.floor(cardSize * 0.22);
+      const badgeX = pos.x + halfCard - badgeSize * 0.5;
+      const badgeY = pos.y - halfCard + badgeSize * 0.5;
       
       ctx.beginPath();
-      ctx.arc(badgeX * scale, badgeY * scale, 14 * scale, 0, Math.PI * 2);
+      ctx.arc(badgeX * scale, badgeY * scale, (badgeSize + 2) * scale, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
       ctx.fill();
       
       ctx.beginPath();
-      ctx.arc(badgeX * scale, badgeY * scale, 12 * scale, 0, Math.PI * 2);
+      ctx.arc(badgeX * scale, badgeY * scale, badgeSize * scale, 0, Math.PI * 2);
       ctx.fillStyle = Colors.TIER_BADGE[item.config.tier];
       ctx.fill();
       
       ctx.fillStyle = '#fff';
-      ctx.font = `bold ${14 * scale}px sans-serif`;
+      ctx.font = `bold ${badgeSize * scale}px sans-serif`;
       ctx.fillText(item.config.tier.toString(), badgeX * scale, badgeY * scale);
     }
   }
@@ -1408,27 +1429,27 @@ function drawButton(x, y, w, h, text) {
 
 function drawBackButton() {
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(15 * scale, (GameConfig.HEIGHT - 140) * scale, 90 * scale, 40 * scale, 10 * scale);
+  roundRect(15 * scale, (GameConfig.HEIGHT - 65) * scale, 90 * scale, 40 * scale, 10 * scale);
   ctx.fill();
   
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${18 * scale}px sans-serif`;
+  ctx.font = `bold ${16 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('← 返回', 60 * scale, (GameConfig.HEIGHT - 120) * scale);
+  ctx.fillText('← 返回', 60 * scale, (GameConfig.HEIGHT - 45) * scale);
 }
 
 function drawBottomInfo() {
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(20 * scale, (GameConfig.HEIGHT - 80) * scale, (GameConfig.WIDTH - 40) * scale, 50 * scale, 12 * scale);
+  roundRect(120 * scale, (GameConfig.HEIGHT - 65) * scale, (GameConfig.WIDTH - 140) * scale, 40 * scale, 10 * scale);
   ctx.fill();
   
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${18 * scale}px sans-serif`;
+  ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const info = infoMessage || '';
-  ctx.fillText(info, GameConfig.WIDTH / 2 * scale, (GameConfig.HEIGHT - 55) * scale);
+  ctx.fillText(info, (GameConfig.WIDTH / 2 + 40) * scale, (GameConfig.HEIGHT - 45) * scale);
 }
 
 function drawEffects() {
