@@ -476,16 +476,20 @@ function renderMainMenu() {
   // 保存图标位置
   mainMenuState.iconY = iconY;
   
-  // 确保阴影关闭
+  // 确保无阴影无描边
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = 'transparent';
+  ctx.lineWidth = 0;
   
   // 游戏标题 - 从胶囊下方开始
   const titleY = capsuleBottom + 80;
   ctx.font = `${70 * scale}px sans-serif`;
   ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#000';  // 纯色填充
   ctx.fillText('🏝️', centerX * scale, titleY * scale);
   
   ctx.fillStyle = '#fff';
