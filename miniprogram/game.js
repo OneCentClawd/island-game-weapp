@@ -390,13 +390,18 @@ function initMergeScene() {
   const gridWidth = MERGE_GRID.cols * cellSize;
   const gridHeight = MERGE_GRID.rows * cellSize;
   mergeState.gridOffsetX = (GameConfig.WIDTH - gridWidth) / 2;
-  // 顶部UI 80px，底部 70px，网格居中
-  const topMargin = 85;
-  const bottomMargin = 75;
+  
+  // 安全区域
+  const safeTop = systemInfo.safeArea ? systemInfo.safeArea.top : 40;
+  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
+  
+  // 顶部UI高度 + 安全区
+  const topMargin = Math.max(safeTop, 35) + 85;
+  const bottomMargin = Math.max(safeBottom, 20) + 55;
   const availableHeight = GameConfig.HEIGHT - topMargin - bottomMargin;
   mergeState.gridOffsetY = topMargin + (availableHeight - gridHeight) / 2;
   
-  // 如果网格太高，调整行数
+  // 如果网格太高，调整位置
   if (mergeState.gridOffsetY < topMargin) {
     mergeState.gridOffsetY = topMargin;
   }
@@ -549,8 +554,10 @@ function handleMergeTouch(x, y) {
   const cellSize = MERGE_GRID.cellSize;
   const cardSize = cellSize - 12;
   
-  // 返回按钮
-  if (x >= 15 && x <= 105 && y >= GameConfig.HEIGHT - 65 && y <= GameConfig.HEIGHT - 25) {
+  // 返回按钮检测
+  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
+  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
     switchScene('MainMenu');
     return;
   }
@@ -677,33 +684,35 @@ function drawMergeBackground() {
 }
 
 function drawMergeTopUI() {
-  // 顶部面板（更紧凑）
+  // 获取安全区域顶部距离（避开刘海/状态栏）
+  const safeTop = systemInfo.safeArea ? systemInfo.safeArea.top : 40;
+  const topPadding = Math.max(safeTop, 35);
+  
+  // 顶部面板
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(10 * scale, 10 * scale, (GameConfig.WIDTH - 20) * scale, 90 * scale, 15 * scale);
+  roundRect(10 * scale, topPadding * scale, (GameConfig.WIDTH - 20) * scale, 75 * scale, 12 * scale);
   ctx.fill();
   
   // 标题
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${26 * scale}px sans-serif`;
+  ctx.font = `bold ${22 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🏝️ 小岛物语', GameConfig.WIDTH / 2 * scale, 32 * scale);
+  ctx.fillText('🏝️ 小岛物语', GameConfig.WIDTH / 2 * scale, (topPadding + 22) * scale);
   
   // 资源栏
   const res = SaveManager.getResources();
-  ctx.font = `bold ${18 * scale}px sans-serif`;
-  const y = 70;
+  ctx.font = `bold ${15 * scale}px sans-serif`;
+  const y = topPadding + 55;
   
   ctx.fillStyle = '#ffff00';
-  ctx.fillText(`⚡${SaveManager.getEnergy()}`, 80 * scale, y * scale);
+  ctx.fillText(`⚡${SaveManager.getEnergy()}`, 60 * scale, y * scale);
   ctx.fillStyle = '#ffd700';
-  ctx.fillText(`💰${res.coin}`, 210 * scale, y * scale);
+  ctx.fillText(`💰${res.coin}`, 160 * scale, y * scale);
   ctx.fillStyle = '#deb887';
-  ctx.fillText(`🪵${res.wood}`, 380 * scale, y * scale);
+  ctx.fillText(`🪵${res.wood}`, 270 * scale, y * scale);
   ctx.fillStyle = '#c0c0c0';
-  ctx.fillText(`🪨${res.stone}`, 530 * scale, y * scale);
-  ctx.fillStyle = '#00ffff';
-  ctx.fillText(`💎${res.diamond}`, 650 * scale, y * scale);
+  ctx.fillText(`🪨${res.stone}`, 350 * scale, y * scale);
 }
 
 function drawMergeGrid() {
@@ -1428,28 +1437,34 @@ function drawButton(x, y, w, h, text) {
 }
 
 function drawBackButton() {
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(15 * scale, (GameConfig.HEIGHT - 65) * scale, 90 * scale, 40 * scale, 10 * scale);
-  ctx.fill();
+  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
+  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
   
-  ctx.fillStyle = '#fff';
-  ctx.font = `bold ${16 * scale}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('← 返回', 60 * scale, (GameConfig.HEIGHT - 45) * scale);
-}
-
-function drawBottomInfo() {
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(120 * scale, (GameConfig.HEIGHT - 65) * scale, (GameConfig.WIDTH - 140) * scale, 40 * scale, 10 * scale);
+  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
   ctx.fill();
   
   ctx.fillStyle = '#fff';
   ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.fillText('← 返回', 55 * scale, (bottomY + 18) * scale);
+}
+
+function drawBottomInfo() {
+  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
+  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+  
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(105 * scale, bottomY * scale, (GameConfig.WIDTH - 120) * scale, 36 * scale, 10 * scale);
+  ctx.fill();
+  
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${13 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
   const info = infoMessage || '';
-  ctx.fillText(info, (GameConfig.WIDTH / 2 + 40) * scale, (GameConfig.HEIGHT - 45) * scale);
+  ctx.fillText(info, (GameConfig.WIDTH / 2 + 40) * scale, (bottomY + 18) * scale);
 }
 
 function drawEffects() {
