@@ -2821,13 +2821,13 @@ function handleLevelSelectTouch(x, y) {
   
   const W = GameConfig.WIDTH;
   const startY = capsuleBottom + 80;
-  const cols = 5;
+  const cols = 4;
   const totalLevels = MATCH3_LEVELS.length;
-  const btnRadius = 22;
-  const padding = 30;
-  const spacingX = (W - padding * 2) / (cols - 1);
-  const spacingY = 65;
-  const startX = padding;
+  const btnRadius = 24;
+  const spacingX = btnRadius * 2 + 15;
+  const totalWidth = spacingX * (cols - 1);
+  const startX = (W - totalWidth) / 2;
+  const spacingY = 70;
   const scrollY = levelSelectState.scrollY || 0;
   
   for (let i = 0; i < totalLevels; i++) {
@@ -2883,13 +2883,13 @@ function renderLevelSelectScene() {
   
   // 关卡按钮（支持滚动）
   const startY = capsuleBottom + 80;
-  const cols = 5;
+  const cols = 4;
   const totalLevels = MATCH3_LEVELS.length;
-  const btnRadius = 22;
-  const padding = 30;
-  const spacingX = (W - padding * 2) / (cols - 1);
-  const spacingY = 65;
-  const startX = padding;
+  const btnRadius = 24;
+  const spacingX = btnRadius * 2 + 15;  // 按钮直径 + 15间隙
+  const totalWidth = spacingX * (cols - 1);
+  const startX = (W - totalWidth) / 2;  // 居中
+  const spacingY = 70;
   const scrollY = levelSelectState.scrollY || 0;
   
   // 计算最大滚动
