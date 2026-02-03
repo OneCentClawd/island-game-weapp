@@ -2791,21 +2791,19 @@ function renderMatch3Result() {
 function initLevelSelectScene() {}
 
 function handleLevelSelectTouch(x, y) {
-  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
-  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
-  
-  // 返回按钮
-  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
-    switchScene('MainMenu');
-    return;
-  }
-  
-  // 关卡按钮
+  // 关卡按钮（也用于返回按钮位置计算）
   let capsuleBottom = 80;
   try {
     const capsule = wx.getMenuButtonBoundingClientRect();
     capsuleBottom = capsule.bottom + 15;
   } catch (e) {}
+  
+  // 返回按钮 - 左上角
+  const btnY = capsuleBottom - 20;
+  if (x >= 15 && x <= 85 && y >= btnY && y <= btnY + 34) {
+    switchScene('MainMenu');
+    return;
+  }
   
   const startY = capsuleBottom + 80;
   const cols = 4;
@@ -2924,16 +2922,22 @@ function renderLevelSelectScene() {
     }
   }
   
-  // 返回按钮
-  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
-  const bottomY = H - Math.max(safeBottom, 15) - 45;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  // 返回按钮 - 左上角精致胶囊
+  const btnX = 15;
+  const btnY = capsuleBottom - 20;
+  const btnW = 70;
+  const btnH = 34;
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  roundRect((btnX + 2) * scale, (btnY + 2) * scale, btnW * scale, btnH * scale, 17 * scale);
   ctx.fill();
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  roundRect(btnX * scale, btnY * scale, btnW * scale, btnH * scale, 17 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#667eea';
   ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('← 返回', 55 * scale, (bottomY + 18) * scale);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('返回', (btnX + btnW / 2) * scale, (btnY + btnH / 2) * scale);
 }
 
 // ===================
