@@ -49,7 +49,7 @@ const ITEMS = {
   // 木材线 (8级) - 使用兼容性好的emoji
   'wood1': { key: 'wood1', name: '树枝', emoji: '🌿', tier: 1, mergeInto: 'wood2' },
   'wood2': { key: 'wood2', name: '木头', emoji: '🌲', tier: 2, mergeInto: 'wood3' },
-  'wood3': { key: 'wood3', name: '木板', emoji: '🪵', tier: 3, mergeInto: 'wood4' },
+  'wood3': { key: 'wood3', name: '木板', emoji: '🌲', tier: 3, mergeInto: 'wood4' },
   'wood4': { key: 'wood4', name: '木箱', emoji: '📦', tier: 4, mergeInto: 'wood5' },
   'wood5': { key: 'wood5', name: '木屋', emoji: '🏠', tier: 5, mergeInto: 'wood6' },
   'wood6': { key: 'wood6', name: '别墅', emoji: '🏡', tier: 6, mergeInto: 'wood7' },
@@ -98,16 +98,16 @@ const ITEMS = {
   
   // 工具线 (8级)
   'tool1': { key: 'tool1', name: '木棍', emoji: '🥢', tier: 1, mergeInto: 'tool2' },
-  'tool2': { key: 'tool2', name: '石斧', emoji: '🪓', tier: 2, mergeInto: 'tool3' },
+  'tool2': { key: 'tool2', name: '石斧', emoji: '🔨', tier: 2, mergeInto: 'tool3' },
   'tool3': { key: 'tool3', name: '铁锤', emoji: '🔨', tier: 3, mergeInto: 'tool4' },
   'tool4': { key: 'tool4', name: '钢剑', emoji: '⚔️', tier: 4, mergeInto: 'tool5' },
-  'tool5': { key: 'tool5', name: '魔杖', emoji: '🪄', tier: 5, mergeInto: 'tool6' },
+  'tool5': { key: 'tool5', name: '魔杖', emoji: '✨', tier: 5, mergeInto: 'tool6' },
   'tool6': { key: 'tool6', name: '神器', emoji: '🔱', tier: 6, mergeInto: 'tool7' },
   'tool7': { key: 'tool7', name: '圣剑', emoji: '🗡️', tier: 7, mergeInto: 'tool8' },
   'tool8': { key: 'tool8', name: '创世神器', emoji: '⚡', tier: 8 },
   
   // 金币线 (8级)
-  'coin1': { key: 'coin1', name: '1金币', emoji: '🪙', tier: 1, value: 1, mergeInto: 'coin2' },
+  'coin1': { key: 'coin1', name: '1金币', emoji: '💰', tier: 1, value: 1, mergeInto: 'coin2' },
   'coin2': { key: 'coin2', name: '5金币', emoji: '💰', tier: 2, value: 5, mergeInto: 'coin3' },
   'coin3': { key: 'coin3', name: '25金币', emoji: '💰', tier: 3, value: 25, mergeInto: 'coin4' },
   'coin4': { key: 'coin4', name: '125金币', emoji: '💎', tier: 4, value: 125, mergeInto: 'coin5' },
@@ -130,12 +130,12 @@ const WAREHOUSE_DROPS = [
   { key: 'coin1', weight: 1 },
 ];
 
-// 三消元素
+// 三消元素 - 使用兼容性好的emoji
 const MATCH3_ELEMENTS = ['wood', 'stone', 'coin', 'star', 'heart', 'diamond'];
 const MATCH3_EMOJIS = {
-  wood: '🪵',
-  stone: '🪨',
-  coin: '🪙',
+  wood: '🌲',
+  stone: '⚪',
+  coin: '💰',
   star: '⭐',
   heart: '❤️',
   diamond: '💎',
@@ -409,16 +409,16 @@ let mergeState = {
   maxShoppers: 3, // 最多同时3个购物者
 };
 
-// 购物者配置
+// 购物者配置 - 使用兼容性好的emoji
 const SHOPPER_TYPES = [
-  { emoji: '👨', name: '农夫' },
-  { emoji: '👩', name: '村民' },
+  { emoji: '👤', name: '农夫' },
+  { emoji: '👧', name: '村民' },
   { emoji: '👴', name: '老爷爷' },
   { emoji: '👵', name: '老奶奶' },
-  { emoji: '🧑', name: '旅行者' },
-  { emoji: '👨‍🌾', name: '园丁' },
+  { emoji: '🧔', name: '旅行者' },
+  { emoji: '👲', name: '园丁' },
   { emoji: '👷', name: '工人' },
-  { emoji: '🧙', name: '魔法师' },
+  { emoji: '🎅', name: '魔法师' },
 ];
 
 // 根据玩家进度获取可用的物品池
@@ -1402,9 +1402,9 @@ function drawMergeTopUI() {
   ctx.fillStyle = '#ffd700';
   ctx.fillText(`💰${res.coin}`, 160 * scale, y * scale);
   ctx.fillStyle = '#deb887';
-  ctx.fillText(`🪵${res.wood}`, 270 * scale, y * scale);
+  ctx.fillText(`🌲${res.wood}`, 270 * scale, y * scale);
   ctx.fillStyle = '#c0c0c0';
-  ctx.fillText(`🪨${res.stone}`, 350 * scale, y * scale);
+  ctx.fillText(`⚪${res.stone}`, 350 * scale, y * scale);
 }
 
 function drawMergeGrid() {
@@ -2319,7 +2319,7 @@ function renderMatch3Scene() {
   
   const targets = [];
   if (target.ice) targets.push({ emoji: '🧊', current: match3State.iceCleared, need: target.ice });
-  if (target.stone) targets.push({ emoji: '🪨', current: match3State.stoneCleared, need: target.stone });
+  if (target.stone) targets.push({ emoji: '⚪', current: match3State.stoneCleared, need: target.stone });
   if (target.chain) targets.push({ emoji: '⛓️', current: match3State.chainCleared, need: target.chain });
   
   if (targets.length > 0) {
@@ -2388,7 +2388,7 @@ function renderMatch3Scene() {
         ctx.font = `${emojiSize * scale}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('🪨', pos.x * scale, pos.y * scale);
+        ctx.fillText('⚪', pos.x * scale, pos.y * scale);
         continue;
       }
       
@@ -2748,8 +2748,8 @@ const ISLAND_DECORATIONS = [
   { id: 'fountain', emoji: '⛲', name: '喷泉', cost: { coin: 800 }, desc: '哗啦啦~' },
   { id: 'bench', emoji: '🪑', name: '长椅', cost: { coin: 300 }, desc: '休息一下' },
   { id: 'lamp', emoji: '🏮', name: '灯笼', cost: { coin: 200 }, desc: '夜晚会亮哦' },
-  { id: 'rock', emoji: '🪨', name: '石头', cost: { coin: 50 }, desc: '朴实的石头' },
-  { id: 'wood', emoji: '🪵', name: '木桩', cost: { coin: 60 }, desc: '可以坐' },
+  { id: 'rock', emoji: '⚪', name: '石头', cost: { coin: 50 }, desc: '朴实的石头' },
+  { id: 'wood', emoji: '🌲', name: '木桩', cost: { coin: 60 }, desc: '可以坐' },
   { id: 'tent', emoji: '⛺', name: '帐篷', cost: { coin: 600 }, desc: '露营风' },
   { id: 'statue', emoji: '🗿', name: '雕像', cost: { coin: 1000, diamond: 5 }, desc: '神秘石像' },
   { id: 'gnome', emoji: '🧙', name: '小矮人', cost: { coin: 400 }, desc: '花园守护者' },
