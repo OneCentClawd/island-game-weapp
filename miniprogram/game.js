@@ -1690,54 +1690,257 @@ function renderAchievementScene() {
 // ===================
 function initDailyTaskScene() {}
 
-function handleDailyTaskTouch(x, y) {
-  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
-  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+// ===================
+// 每日任务系统
+// ===================
+const DAILY_TASKS_CONFIG = [
+  { id: 'match3_3', emoji: '🎮', name: '完成3关消消乐', target: 3, reward: { coin: 100 }, rewardText: '💰 100' },
+  { id: 'merge_20', emoji: '🔄', name: '合成20次', target: 20, reward: { coin: 50, energy: 10 }, rewardText: '💰50 ⚡10' },
+  { id: 'coin_500', emoji: '💰', name: '收集500金币', target: 500, reward: { diamond: 5 }, rewardText: '💎 5' },
+  { id: 'feed_puppy', emoji: '🐕', name: '喂小狗3次', target: 3, reward: { coin: 80 }, rewardText: '💰 80' },
+  { id: 'match3_1', emoji: '⭐', name: '完成1关三星', target: 1, reward: { diamond: 3 }, rewardText: '💎 3' },
+];
+
+let dailyTaskState = {
+  tasks: [],
+  lastRefresh: 0,
+};
+
+function initDailyTasks() {
+  const today = new Date().toDateString();
+  const savedDate = SaveManager.data.dailyTasks.lastRefresh;
   
+  // 如果是新的一天，刷新任务
+  if (savedDate !== today) {
+    // 随机选3个任务
+    const shuffled = [...DAILY_TASKS_CONFIG].sort(() => Math.random() - 0.5);
+    dailyTaskState.tasks = shuffled.slice(0, 3).map(t => ({
+      ...t,
+      progress: 0,
+      claimed: false,
+    }));
+    dailyTaskState.lastRefresh = today;
+    SaveManager.data.dailyTasks = {
+      lastRefresh: today,
+      tasks: dailyTaskState.tasks,
+      stats: SaveManager.data.dailyTasks.stats || { matches: 0, merges: 0, coins: 0, feeds: 0, stars: 0 },
+    };
+    SaveManager.save();
+  } else {
+    dailyTaskState.tasks = SaveManager.data.dailyTasks.tasks || [];
+    dailyTaskState.lastRefresh = savedDate;
+  }
+}
+
+function updateDailyTaskProgress(type, amount = 1) {
+  if (!SaveManager.data.dailyTasks.stats) {
+    SaveManager.data.dailyTasks.stats = { matches: 0, merges: 0, coins: 0, feeds: 0, stars: 0 };
+  }
+  const stats = SaveManager.data.dailyTasks.stats;
+  
+  switch (type) {
+    case 'match3': stats.matches += amount; break;
+    case 'merge': stats.merges += amount; break;
+    case 'coin': stats.coins += amount; break;
+    case 'feed': stats.feeds += amount; break;
+    case 'star': stats.stars += amount; break;
+  }
+  
+  // 更新任务进度
+  for (const task of dailyTaskState.tasks) {
+    if (task.claimed) continue;
+    switch (task.id) {
+      case 'match3_3': task.progress = stats.matches; break;
+      case 'merge_20': task.progress = stats.merges; break;
+      case 'coin_500': task.progress = stats.coins; break;
+      case 'feed_puppy': task.progress = stats.feeds; break;
+      case 'match3_1': task.progress = stats.stars; break;
+    }
+  }
+  
+  SaveManager.data.dailyTasks.tasks = dailyTaskState.tasks;
+  SaveManager.data.dailyTasks.stats = stats;
+  SaveManager.save();
+}
+
+function claimDailyTask(index) {
+  const task = dailyTaskState.tasks[index];
+  if (!task || task.claimed || task.progress < task.target) return false;
+  
+  task.claimed = true;
+  SaveManager.addResources(task.reward);
+  if (task.reward.energy) {
+    SaveManager.data.energy = Math.min(SaveManager.data.maxEnergy, SaveManager.data.energy + task.reward.energy);
+  }
+  SaveManager.data.dailyTasks.tasks = dailyTaskState.tasks;
+  SaveManager.save();
+  showInfo(`🎁 领取成功！${task.rewardText}`);
+  return true;
+}
+
+function handleDailyTaskTouch(x, y) {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const bottomY = H - Math.max(safeBottom, 15) - 45;
+  
+  // 返回按钮
   if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
     switchScene('MainMenu');
     return;
   }
+  
+  // 任务领取按钮
+  let capsuleBottom = 80;
+  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
+  
+  const startY = capsuleBottom + 60;
+  const taskHeight = 90;
+  const taskSpacing = 10;
+  
+  for (let i = 0; i < dailyTaskState.tasks.length; i++) {
+    const task = dailyTaskState.tasks[i];
+    const ty = startY + i * (taskHeight + taskSpacing);
+    const btnX = W - 90;
+    const btnY = ty + 30;
+    
+    // 检测点击领取按钮
+    if (x >= btnX && x <= btnX + 70 && y >= btnY && y <= btnY + 35) {
+      if (task.claimed) {
+        showInfo('✅ 已领取');
+      } else if (task.progress >= task.target) {
+        claimDailyTask(i);
+      } else {
+        showInfo('❌ 任务未完成');
+      }
+      return;
+    }
+  }
 }
 
 function renderDailyTaskScene() {
-  const gradient = ctx.createLinearGradient(0, 0, 0, GameConfig.HEIGHT * scale);
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  
+  // 初始化任务
+  if (dailyTaskState.tasks.length === 0) {
+    initDailyTasks();
+  }
+  
+  // 背景
+  const gradient = ctx.createLinearGradient(0, 0, 0, H * scale);
   gradient.addColorStop(0, '#a8edea');
   gradient.addColorStop(1, '#fed6e3');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, GameConfig.WIDTH * scale, GameConfig.HEIGHT * scale);
+  ctx.fillRect(0, 0, W * scale, H * scale);
   
+  // 安全区域
+  let capsuleBottom = 80;
+  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
+  
+  // 标题
   ctx.fillStyle = '#333';
-  ctx.font = `bold ${36 * scale}px sans-serif`;
+  ctx.font = `bold ${26 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('📋 每日任务', GameConfig.WIDTH / 2 * scale, 100 * scale);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('📋 每日任务', W / 2 * scale, capsuleBottom * scale);
   
-  const tasks = [
-    { emoji: '🎮', name: '完成3关消消乐', reward: '💰 100', progress: '1/3' },
-    { emoji: '🔄', name: '合成20次', reward: '⚡ 50', progress: '5/20' },
-    { emoji: '💰', name: '收集500金币', reward: '💎 5', progress: '200/500' },
-  ];
+  // 刷新提示
+  ctx.font = `${12 * scale}px sans-serif`;
+  ctx.fillStyle = '#666';
+  ctx.fillText('每日0点刷新', W / 2 * scale, (capsuleBottom + 25) * scale);
   
-  tasks.forEach((task, i) => {
-    const y = 180 + i * 120;
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    roundRect(50 * scale, y * scale, (GameConfig.WIDTH - 100) * scale, 100 * scale, 15 * scale);
+  // 任务列表
+  const startY = capsuleBottom + 60;
+  const taskHeight = 90;
+  const taskSpacing = 10;
+  
+  dailyTaskState.tasks.forEach((task, i) => {
+    const ty = startY + i * (taskHeight + taskSpacing);
+    
+    // 任务卡片背景
+    ctx.fillStyle = task.claimed ? 'rgba(200,200,200,0.6)' : 'rgba(255,255,255,0.8)';
+    roundRect(20 * scale, ty * scale, (W - 40) * scale, taskHeight * scale, 12 * scale);
     ctx.fill();
     
-    ctx.font = `${40 * scale}px sans-serif`;
-    ctx.fillText(task.emoji, 100 * scale, (y + 50) * scale);
+    // 边框
+    ctx.strokeStyle = task.progress >= task.target ? '#4CAF50' : 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = 2 * scale;
+    roundRect(20 * scale, ty * scale, (W - 40) * scale, taskHeight * scale, 12 * scale);
+    ctx.stroke();
     
-    ctx.fillStyle = '#333';
-    ctx.font = `bold ${20 * scale}px sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText(task.name, 150 * scale, (y + 40) * scale);
-    ctx.font = `${16 * scale}px sans-serif`;
-    ctx.fillText(`奖励: ${task.reward}`, 150 * scale, (y + 65) * scale);
-    ctx.fillText(`进度: ${task.progress}`, 150 * scale, (y + 85) * scale);
+    // Emoji
+    ctx.font = `${36 * scale}px sans-serif`;
     ctx.textAlign = 'center';
+    ctx.fillText(task.emoji, 55 * scale, (ty + 35) * scale);
+    
+    // 任务名称
+    ctx.fillStyle = task.claimed ? '#999' : '#333';
+    ctx.font = `bold ${16 * scale}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(task.name, 85 * scale, (ty + 28) * scale);
+    
+    // 奖励
+    ctx.font = `${13 * scale}px sans-serif`;
+    ctx.fillStyle = '#666';
+    ctx.fillText(`奖励: ${task.rewardText}`, 85 * scale, (ty + 48) * scale);
+    
+    // 进度条
+    const progressWidth = 120;
+    const progressX = 85;
+    const progressY = ty + 62;
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    roundRect(progressX * scale, progressY * scale, progressWidth * scale, 14 * scale, 7 * scale);
+    ctx.fill();
+    
+    const progressPct = Math.min(1, task.progress / task.target);
+    ctx.fillStyle = task.claimed ? '#aaa' : (progressPct >= 1 ? '#4CAF50' : '#2196F3');
+    roundRect(progressX * scale, progressY * scale, (progressWidth * progressPct) * scale, 14 * scale, 7 * scale);
+    ctx.fill();
+    
+    // 进度文字
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${10 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.min(task.progress, task.target)}/${task.target}`, (progressX + progressWidth / 2) * scale, (progressY + 7) * scale);
+    
+    // 领取按钮
+    const btnX = W - 90;
+    const btnY = ty + 30;
+    if (task.claimed) {
+      ctx.fillStyle = '#aaa';
+      roundRect(btnX * scale, btnY * scale, 60 * scale, 32 * scale, 8 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${12 * scale}px sans-serif`;
+      ctx.fillText('已领取', (btnX + 30) * scale, (btnY + 16) * scale);
+    } else if (task.progress >= task.target) {
+      ctx.fillStyle = '#4CAF50';
+      roundRect(btnX * scale, btnY * scale, 60 * scale, 32 * scale, 8 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${12 * scale}px sans-serif`;
+      ctx.fillText('领取', (btnX + 30) * scale, (btnY + 16) * scale);
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      roundRect(btnX * scale, btnY * scale, 60 * scale, 32 * scale, 8 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#999';
+      ctx.font = `bold ${12 * scale}px sans-serif`;
+      ctx.fillText('未完成', (btnX + 30) * scale, (btnY + 16) * scale);
+    }
   });
   
-  drawBackButton();
+  // 返回按钮
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const bottomY = H - Math.max(safeBottom, 15) - 45;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('← 返回', 55 * scale, (bottomY + 18) * scale);
 }
 
 // ===================
