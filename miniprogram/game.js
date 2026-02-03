@@ -378,14 +378,17 @@ let mergeState = {
   gridOffsetY: 0,
 };
 
-const MERGE_GRID = { cols: 6, rows: 7, cellSize: 85 };
+const MERGE_GRID = { cols: 6, rows: 8, cellSize: 80 };
 
 function initMergeScene() {
   const gridWidth = MERGE_GRID.cols * MERGE_GRID.cellSize;
   const gridHeight = MERGE_GRID.rows * MERGE_GRID.cellSize;
   mergeState.gridOffsetX = (GameConfig.WIDTH - gridWidth) / 2;
-  const availableHeight = GameConfig.HEIGHT - 120 - 100;
-  mergeState.gridOffsetY = 120 + (availableHeight - gridHeight) / 2;
+  // 顶部UI 100px，底部 80px，网格居中
+  const topMargin = 110;
+  const bottomMargin = 90;
+  const availableHeight = GameConfig.HEIGHT - topMargin - bottomMargin;
+  mergeState.gridOffsetY = topMargin + (availableHeight - gridHeight) / 2;
   
   mergeState.items = [];
   mergeState.selectedItem = null;
@@ -430,12 +433,18 @@ function getMergeItemAt(col, row) {
 }
 
 function findMergeEmptyCell() {
+  // 收集所有空位
+  const emptyCells = [];
   for (let row = 0; row < MERGE_GRID.rows; row++) {
     for (let col = 0; col < MERGE_GRID.cols; col++) {
-      if (!getMergeItemAt(col, row)) return { col, row };
+      if (!getMergeItemAt(col, row)) {
+        emptyCells.push({ col, row });
+      }
     }
   }
-  return null;
+  // 随机选一个空位
+  if (emptyCells.length === 0) return null;
+  return emptyCells[Math.floor(Math.random() * emptyCells.length)];
 }
 
 function spawnMergeItem(key, col, row, animate = true) {
@@ -595,68 +604,91 @@ function renderMergeScene() {
 }
 
 function drawMergeBackground() {
-  // 天空
-  for (let y = 0; y < GameConfig.HEIGHT / 2; y += 4) {
-    const ratio = y / (GameConfig.HEIGHT / 2);
-    const r = Math.floor(135 + (100 - 135) * ratio);
-    const g = Math.floor(206 + (180 - 206) * ratio);
-    const b = Math.floor(235 + (220 - 235) * ratio);
-    ctx.fillStyle = `rgb(${r},${g},${b})`;
-    ctx.fillRect(0, y * scale, GameConfig.WIDTH * scale, 4 * scale);
-  }
-  // 草地
-  for (let y = GameConfig.HEIGHT / 2; y < GameConfig.HEIGHT; y += 4) {
-    const ratio = (y - GameConfig.HEIGHT / 2) / (GameConfig.HEIGHT / 2);
-    const r = Math.floor(76 + (45 - 76) * ratio);
-    const g = Math.floor(140 + (90 - 140) * ratio);
-    const b = Math.floor(80 + (50 - 80) * ratio);
-    ctx.fillStyle = `rgb(${r},${g},${b})`;
-    ctx.fillRect(0, y * scale, GameConfig.WIDTH * scale, 4 * scale);
-  }
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
   
-  // 装饰
+  // 天空渐变（柔和的蓝色）
+  const skyGradient = ctx.createLinearGradient(0, 0, 0, H * 0.5 * scale);
+  skyGradient.addColorStop(0, '#87CEEB');
+  skyGradient.addColorStop(1, '#64B4DC');
+  ctx.fillStyle = skyGradient;
+  ctx.fillRect(0, 0, W * scale, H * 0.5 * scale);
+  
+  // 草地渐变
+  const grassGradient = ctx.createLinearGradient(0, H * 0.5 * scale, 0, H * scale);
+  grassGradient.addColorStop(0, '#4C8C50');
+  grassGradient.addColorStop(1, '#2D5A30');
+  ctx.fillStyle = grassGradient;
+  ctx.fillRect(0, H * 0.5 * scale, W * scale, H * 0.5 * scale);
+  
+  // 天空装饰
   ctx.globalAlpha = 0.6;
   ctx.font = `${40 * scale}px sans-serif`;
-  ctx.fillText('☁️', 50 * scale, 180 * scale);
-  ctx.fillText('☁️', 280 * scale, 200 * scale);
-  ctx.fillText('☁️', 550 * scale, 175 * scale);
+  ctx.textAlign = 'center';
+  ctx.fillText('☁️', 60 * scale, 150 * scale);
+  ctx.fillText('☁️', 300 * scale, 180 * scale);
+  ctx.fillText('☁️', 550 * scale, 160 * scale);
   ctx.globalAlpha = 0.8;
   ctx.font = `${50 * scale}px sans-serif`;
-  ctx.fillText('☀️', 650 * scale, 180 * scale);
+  ctx.fillText('☀️', 650 * scale, 160 * scale);
+  
+  // 草地装饰 - 左右两侧
   ctx.globalAlpha = 0.7;
   ctx.font = `${50 * scale}px sans-serif`;
-  ctx.fillText('🌳', 20 * scale, 700 * scale);
-  ctx.fillText('🌴', 650 * scale, 720 * scale);
-  ctx.fillText('🌲', 15 * scale, 1000 * scale);
-  ctx.fillText('🌳', 640 * scale, 1020 * scale);
+  ctx.fillText('🌳', 30 * scale, 680 * scale);
+  ctx.fillText('🌴', 660 * scale, 700 * scale);
+  ctx.fillText('🌲', 25 * scale, 900 * scale);
+  ctx.fillText('🌳', 655 * scale, 920 * scale);
+  ctx.fillText('🌴', 30 * scale, 1100 * scale);
+  ctx.fillText('🌲', 660 * scale, 1120 * scale);
+  
+  // 花朵点缀
+  ctx.font = `${24 * scale}px sans-serif`;
+  ctx.globalAlpha = 0.6;
+  ctx.fillText('🌸', 85 * scale, 750 * scale);
+  ctx.fillText('🌷', 625 * scale, 780 * scale);
+  ctx.fillText('🌻', 50 * scale, 980 * scale);
+  ctx.fillText('🌺', 670 * scale, 1000 * scale);
+  ctx.fillText('🌼', 70 * scale, 1180 * scale);
+  ctx.fillText('🌷', 640 * scale, 1200 * scale);
+  
+  // 小动物
+  ctx.fillText('🦋', 100 * scale, 850 * scale);
+  ctx.fillText('🐰', 610 * scale, 870 * scale);
+  ctx.fillText('🐿️', 90 * scale, 1050 * scale);
+  ctx.fillText('🐦', 620 * scale, 1070 * scale);
+  
   ctx.globalAlpha = 1;
 }
 
 function drawMergeTopUI() {
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  roundRect(10 * scale, 10 * scale, (GameConfig.WIDTH - 20) * scale, 110 * scale, 15 * scale);
+  // 顶部面板（更紧凑）
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(10 * scale, 10 * scale, (GameConfig.WIDTH - 20) * scale, 90 * scale, 15 * scale);
   ctx.fill();
   
+  // 标题
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${28 * scale}px sans-serif`;
+  ctx.font = `bold ${26 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🏝️ 小岛物语', GameConfig.WIDTH / 2 * scale, 35 * scale);
+  ctx.fillText('🏝️ 小岛物语', GameConfig.WIDTH / 2 * scale, 32 * scale);
   
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  roundRect(30 * scale, 67 * scale, (GameConfig.WIDTH - 60) * scale, 36 * scale, 10 * scale);
-  ctx.fill();
-  
+  // 资源栏
   const res = SaveManager.getResources();
-  ctx.font = `bold ${20 * scale}px sans-serif`;
+  ctx.font = `bold ${18 * scale}px sans-serif`;
+  const y = 70;
+  
   ctx.fillStyle = '#ffff00';
-  ctx.fillText(`⚡ ${SaveManager.getEnergy()}`, 100 * scale, 85 * scale);
+  ctx.fillText(`⚡${SaveManager.getEnergy()}`, 80 * scale, y * scale);
   ctx.fillStyle = '#ffd700';
-  ctx.fillText(`💰 ${res.coin}`, 250 * scale, 85 * scale);
+  ctx.fillText(`💰${res.coin}`, 210 * scale, y * scale);
   ctx.fillStyle = '#deb887';
-  ctx.fillText(`🪵 ${res.wood}`, 420 * scale, 85 * scale);
+  ctx.fillText(`🪵${res.wood}`, 380 * scale, y * scale);
   ctx.fillStyle = '#c0c0c0';
-  ctx.fillText(`🪨 ${res.stone}`, 570 * scale, 85 * scale);
+  ctx.fillText(`🪨${res.stone}`, 530 * scale, y * scale);
+  ctx.fillStyle = '#00ffff';
+  ctx.fillText(`💎${res.diamond}`, 650 * scale, y * scale);
 }
 
 function drawMergeGrid() {
