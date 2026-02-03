@@ -4969,7 +4969,7 @@ function renderLeaderboardScene() {
   ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('← 返回', (btnX + btnW / 2) * scale, (btnY + btnH / 2) * scale);
+  ctx.fillText('返回', (btnX + btnW / 2) * scale, (btnY + btnH / 2) * scale);
 }
 
 // ===================
