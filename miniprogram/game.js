@@ -1530,7 +1530,7 @@ function drawMergeBackground() {
   ctx.fillText('☁️', 550 * scale, 160 * scale);
   ctx.globalAlpha = 0.8;
   ctx.font = `${50 * scale}px sans-serif`;
-  ctx.fillText('☀️', 650 * scale, 160 * scale);
+  ctx.fillText('🌞', 650 * scale, 160 * scale);
   
   // 草地装饰 - 左右两侧
   ctx.globalAlpha = 0.7;
@@ -3720,7 +3720,7 @@ function renderIslandScene() {
     ctx.fillText('🌅', (W - 80) * scale, 140 * scale);
   } else {
     ctx.font = `${50 * scale}px sans-serif`;
-    ctx.fillText('☀️', (W - 60) * scale, 120 * scale);
+    ctx.fillText('🌞', (W - 60) * scale, 120 * scale);
   }
   
   // 云朵
@@ -3885,7 +3885,7 @@ function renderIslandScene() {
   ctx.fillStyle = '#fff';
   ctx.font = `bold ${24 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  const timeEmoji = islandState.timeOfDay === 'night' ? '🌙' : islandState.timeOfDay === 'evening' ? '🌅' : '☀️';
+  const timeEmoji = islandState.timeOfDay === 'night' ? '🌙' : islandState.timeOfDay === 'evening' ? '🌅' : '🌞';
   ctx.fillText(`🏝️ 我的小岛 ${timeEmoji}`, centerX * scale, capsuleBottom * scale);
   
   // 小狗状态面板
@@ -3894,33 +3894,35 @@ function renderIslandScene() {
   roundRect(15 * scale, panelY * scale, (W - 30) * scale, 95 * scale, 12 * scale);
   ctx.fill();
   
-  // 小狗名字和等级
+  // 第一行：小狗名字和等级 + 经验条 + 好感度
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.font = `bold ${13 * scale}px sans-serif`;
   ctx.textAlign = 'left';
-  ctx.fillText(`🐕 小狗 Lv.${puppy.level || 1}`, 25 * scale, (panelY + 18) * scale);
+  ctx.fillText(`🐕 小狗 Lv.${puppy.level || 1}`, 25 * scale, (panelY + 16) * scale);
   
-  // 经验条背景
+  // 经验条背景 - 移到等级文字后面
+  const expBarX = 120;
+  const expBarW = W - 200;
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  roundRect(100 * scale, (panelY + 10) * scale, 80 * scale, 12 * scale, 6 * scale);
+  roundRect(expBarX * scale, (panelY + 8) * scale, expBarW * scale, 12 * scale, 6 * scale);
   ctx.fill();
   // 经验条填充
   const expNeeded = (puppy.level || 1) * 100;
   const expRatio = (puppy.exp || 0) / expNeeded;
   ctx.fillStyle = '#9c27b0';
-  roundRect(100 * scale, (panelY + 10) * scale, (80 * expRatio) * scale, 12 * scale, 6 * scale);
+  roundRect(expBarX * scale, (panelY + 8) * scale, (expBarW * expRatio) * scale, 12 * scale, 6 * scale);
   ctx.fill();
   // 经验文字
   ctx.fillStyle = '#fff';
-  ctx.font = `${10 * scale}px sans-serif`;
+  ctx.font = `${9 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText(`${puppy.exp || 0}/${expNeeded}`, 140 * scale, (panelY + 17) * scale);
+  ctx.fillText(`${puppy.exp || 0}/${expNeeded}`, (expBarX + expBarW / 2) * scale, (panelY + 15) * scale);
   
-  // 好感度
+  // 好感度 - 右侧
   ctx.textAlign = 'right';
-  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.font = `bold ${13 * scale}px sans-serif`;
   ctx.fillStyle = '#fff';
-  ctx.fillText(`❤️ ${Math.floor(puppy.love || 0)}`, (W - 25) * scale, (panelY + 18) * scale);
+  ctx.fillText(`❤️ ${Math.floor(puppy.love || 0)}`, (W - 25) * scale, (panelY + 16) * scale);
   
   // 第二行：饱腹度条
   ctx.textAlign = 'left';
