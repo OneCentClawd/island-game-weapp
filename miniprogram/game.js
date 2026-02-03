@@ -693,7 +693,10 @@ function findMergeEmptyCell() {
   return emptyCells[Math.floor(Math.random() * emptyCells.length)];
 }
 
-function spawnMergeItem(key, col, row, animate = true) {
+// 飞行中的物品
+let flyingItems = [];
+
+function spawnMergeItem(key, col, row, animate = true, flyFrom = null) {
   const config = ITEMS[key];
   if (!config) return null;
   
@@ -702,6 +705,30 @@ function spawnMergeItem(key, col, row, animate = true) {
     if (!empty) return null;
     col = empty.col;
     row = empty.row;
+  }
+  
+  const targetPos = getMergeCellCenter(col, row);
+  
+  // 如果有飞行起点，创建飞行动画
+  if (flyFrom && animate) {
+    const flyItem = {
+      config: config,
+      targetCol: col,
+      targetRow: row,
+      // 起点
+      x: flyFrom.x,
+      y: flyFrom.y,
+      // 终点
+      targetX: targetPos.x,
+      targetY: targetPos.y,
+      // 动画进度
+      progress: 0,
+      duration: 0.4, // 秒
+      // 抛物线高度
+      arcHeight: -80,
+    };
+    flyingItems.push(flyItem);
+    return { pending: true, config, col, row };
   }
   
   const item = {
@@ -715,6 +742,78 @@ function spawnMergeItem(key, col, row, animate = true) {
   
   mergeState.items.push(item);
   return item;
+}
+
+// 更新飞行物品
+function updateFlyingItems(dt) {
+  for (let i = flyingItems.length - 1; i >= 0; i--) {
+    const fly = flyingItems[i];
+    fly.progress += dt / fly.duration;
+    
+    if (fly.progress >= 1) {
+      // 动画完成，生成真实物品
+      const item = {
+        id: mergeState.nextId++,
+        config: fly.config,
+        x: fly.targetCol,
+        y: fly.targetRow,
+        scale: 0.5, // 从小放大
+        lastClickTime: 0,
+      };
+      mergeState.items.push(item);
+      flyingItems.splice(i, 1);
+      
+      // 落地特效
+      createMergeEffect(getMergeCellCenter(fly.targetCol, fly.targetRow));
+    }
+  }
+}
+
+// 绘制飞行物品
+function drawFlyingItems() {
+  for (const fly of flyingItems) {
+    const t = fly.progress;
+    // 抛物线插值
+    const x = fly.x + (fly.targetX - fly.x) * t;
+    const baseY = fly.y + (fly.targetY - fly.y) * t;
+    const arcY = fly.arcHeight * 4 * t * (1 - t); // 抛物线
+    const y = baseY + arcY;
+    
+    // 旋转效果
+    const rotation = t * Math.PI * 2;
+    
+    // 缩放（飞行中稍微变大）
+    const flyScale = 1 + 0.3 * Math.sin(t * Math.PI);
+    
+    ctx.save();
+    ctx.translate(x * scale, y * scale);
+    ctx.rotate(rotation);
+    ctx.scale(flyScale, flyScale);
+    
+    // 绘制物品
+    ctx.font = `${35 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(fly.config.emoji, 0, 0);
+    
+    ctx.restore();
+    
+    // 拖尾效果
+    ctx.globalAlpha = 0.3;
+    for (let j = 1; j <= 3; j++) {
+      const trailT = Math.max(0, t - j * 0.05);
+      const trailX = fly.x + (fly.targetX - fly.x) * trailT;
+      const trailBaseY = fly.y + (fly.targetY - fly.y) * trailT;
+      const trailArcY = fly.arcHeight * 4 * trailT * (1 - trailT);
+      const trailY = trailBaseY + trailArcY;
+      const trailScale = (1 - j * 0.2) * flyScale;
+      
+      ctx.font = `${35 * trailScale * scale}px sans-serif`;
+      ctx.globalAlpha = 0.3 - j * 0.08;
+      ctx.fillText(fly.config.emoji, trailX * scale, trailY * scale);
+    }
+    ctx.globalAlpha = 1;
+  }
 }
 
 function removeMergeItem(item) {
@@ -735,7 +834,11 @@ function clickWarehouse() {
     if (rand <= 0) { selected = drop.key; break; }
   }
   
-  const item = spawnMergeItem(selected, empty.col, empty.row);
+  // 找到仓库位置作为飞行起点
+  const warehouse = mergeState.items.find(i => i.config.key === 'warehouse');
+  const warehousePos = warehouse ? getMergeCellCenter(warehouse.x, warehouse.y) : null;
+  
+  const item = spawnMergeItem(selected, empty.col, empty.row, true, warehousePos);
   if (item) showInfo(`获得 ${item.config.emoji} ${item.config.name}！`);
   saveMergeGame();
 }
@@ -872,6 +975,8 @@ function renderMergeScene() {
   drawMergeGrid();
   // 物品
   drawMergeItems();
+  // 飞行物品
+  drawFlyingItems();
   // 特效
   drawEffects();
   // 底部UI
@@ -3359,7 +3464,16 @@ wx.onTouchStart(function(e) {
 // ===================
 // 主渲染循环
 // ===================
+let lastFrameTime = Date.now();
+
 function render() {
+  const now = Date.now();
+  const dt = (now - lastFrameTime) / 1000; // 转换为秒
+  lastFrameTime = now;
+  
+  // 更新动画
+  updateAnimations(dt);
+  
   switch (currentScene) {
     case 'MainMenu': renderMainMenu(); break;
     case 'Merge': renderMergeScene(); break;
@@ -3372,6 +3486,28 @@ function render() {
   }
   
   requestAnimationFrame(render);
+}
+
+function updateAnimations(dt) {
+  // 更新飞行物品
+  updateFlyingItems(dt);
+  
+  // 更新物品缩放动画
+  for (const item of mergeState.items) {
+    if (item.scale < 1) {
+      item.scale = Math.min(1, item.scale + dt * 4); // 0.25秒从0到1
+    }
+  }
+  
+  // 更新特效
+  for (let i = effects.length - 1; i >= 0; i--) {
+    const e = effects[i];
+    e.x += e.vx;
+    e.y += e.vy;
+    e.vy += 0.2; // 重力
+    e.life -= dt * 2;
+    if (e.life <= 0) effects.splice(i, 1);
+  }
 }
 
 // ===================
