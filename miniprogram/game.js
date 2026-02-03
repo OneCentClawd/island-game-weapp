@@ -46,20 +46,20 @@ const Colors = {
 // 物品配置
 // ===================
 const ITEMS = {
-  // 木材线 (8级)
+  // 木材线 (8级) - 使用兼容性好的emoji
   'wood1': { key: 'wood1', name: '树枝', emoji: '🌿', tier: 1, mergeInto: 'wood2' },
-  'wood2': { key: 'wood2', name: '木头', emoji: '🪵', tier: 2, mergeInto: 'wood3' },
-  'wood3': { key: 'wood3', name: '木板', emoji: '🪓', tier: 3, mergeInto: 'wood4' },
+  'wood2': { key: 'wood2', name: '木头', emoji: '🌲', tier: 2, mergeInto: 'wood3' },
+  'wood3': { key: 'wood3', name: '木板', emoji: '🪵', tier: 3, mergeInto: 'wood4' },
   'wood4': { key: 'wood4', name: '木箱', emoji: '📦', tier: 4, mergeInto: 'wood5' },
   'wood5': { key: 'wood5', name: '木屋', emoji: '🏠', tier: 5, mergeInto: 'wood6' },
   'wood6': { key: 'wood6', name: '别墅', emoji: '🏡', tier: 6, mergeInto: 'wood7' },
   'wood7': { key: 'wood7', name: '豪宅', emoji: '🏰', tier: 7, mergeInto: 'wood8' },
   'wood8': { key: 'wood8', name: '宫殿', emoji: '🏯', tier: 8 },
   
-  // 石材线 (8级)
-  'stone1': { key: 'stone1', name: '碎石', emoji: '🪨', tier: 1, mergeInto: 'stone2' },
+  // 石材线 (8级) - 石头换成⚪更兼容
+  'stone1': { key: 'stone1', name: '碎石', emoji: '⚪', tier: 1, mergeInto: 'stone2' },
   'stone2': { key: 'stone2', name: '石块', emoji: '🧱', tier: 2, mergeInto: 'stone3' },
-  'stone3': { key: 'stone3', name: '石墙', emoji: '🧱', tier: 3, mergeInto: 'stone4' },
+  'stone3': { key: 'stone3', name: '石墙', emoji: '🏗️', tier: 3, mergeInto: 'stone4' },
   'stone4': { key: 'stone4', name: '石塔', emoji: '🗼', tier: 4, mergeInto: 'stone5' },
   'stone5': { key: 'stone5', name: '城堡', emoji: '🏛️', tier: 5, mergeInto: 'stone6' },
   'stone6': { key: 'stone6', name: '要塞', emoji: '🏰', tier: 6, mergeInto: 'stone7' },
@@ -68,17 +68,17 @@ const ITEMS = {
   
   // 食物线 (8级)
   'food1': { key: 'food1', name: '种子', emoji: '🌱', tier: 1, mergeInto: 'food2' },
-  'food2': { key: 'food2', name: '草芽', emoji: '🌿', tier: 2, mergeInto: 'food3' },
+  'food2': { key: 'food2', name: '草芽', emoji: '🍀', tier: 2, mergeInto: 'food3' },
   'food3': { key: 'food3', name: '蔬菜', emoji: '🥕', tier: 3, mergeInto: 'food4' },
   'food4': { key: 'food4', name: '水果', emoji: '🍎', tier: 4, mergeInto: 'food5' },
   'food5': { key: 'food5', name: '面包', emoji: '🍞', tier: 5, mergeInto: 'food6' },
   'food6': { key: 'food6', name: '蛋糕', emoji: '🎂', tier: 6, mergeInto: 'food7' },
   'food7': { key: 'food7', name: '盛宴', emoji: '🍱', tier: 7, mergeInto: 'food8' },
-  'food8': { key: 'food8', name: '满汉全席', emoji: '🥘', tier: 8 },
+  'food8': { key: 'food8', name: '满汉全席', emoji: '🍲', tier: 8 },
   
-  // 矿石线 (8级)
-  'ore1': { key: 'ore1', name: '煤矿', emoji: '⬛', tier: 1, mergeInto: 'ore2' },
-  'ore2': { key: 'ore2', name: '铜矿', emoji: '🪙', tier: 2, mergeInto: 'ore3' },
+  // 矿石线 (8级) - 煤矿换成🔲
+  'ore1': { key: 'ore1', name: '煤矿', emoji: '🔲', tier: 1, mergeInto: 'ore2' },
+  'ore2': { key: 'ore2', name: '铜矿', emoji: '🟤', tier: 2, mergeInto: 'ore3' },
   'ore3': { key: 'ore3', name: '铁矿', emoji: '⚙️', tier: 3, mergeInto: 'ore4' },
   'ore4': { key: 'ore4', name: '银矿', emoji: '🥈', tier: 4, mergeInto: 'ore5' },
   'ore5': { key: 'ore5', name: '金矿', emoji: '🥇', tier: 5, mergeInto: 'ore6' },
@@ -89,11 +89,11 @@ const ITEMS = {
   // 布料线 (8级)
   'cloth1': { key: 'cloth1', name: '棉花', emoji: '☁️', tier: 1, mergeInto: 'cloth2' },
   'cloth2': { key: 'cloth2', name: '线团', emoji: '🧶', tier: 2, mergeInto: 'cloth3' },
-  'cloth3': { key: 'cloth3', name: '布匹', emoji: '🧵', tier: 3, mergeInto: 'cloth4' },
+  'cloth3': { key: 'cloth3', name: '布匹', emoji: '🎀', tier: 3, mergeInto: 'cloth4' },
   'cloth4': { key: 'cloth4', name: '衣服', emoji: '👕', tier: 4, mergeInto: 'cloth5' },
   'cloth5': { key: 'cloth5', name: '礼服', emoji: '👗', tier: 5, mergeInto: 'cloth6' },
   'cloth6': { key: 'cloth6', name: '皇袍', emoji: '👘', tier: 6, mergeInto: 'cloth7' },
-  'cloth7': { key: 'cloth7', name: '神衣', emoji: '🥻', tier: 7, mergeInto: 'cloth8' },
+  'cloth7': { key: 'cloth7', name: '神衣', emoji: '👔', tier: 7, mergeInto: 'cloth8' },
   'cloth8': { key: 'cloth8', name: '传说披风', emoji: '🦸', tier: 8 },
   
   // 工具线 (8级)
@@ -116,8 +116,8 @@ const ITEMS = {
   'coin7': { key: 'coin7', name: '15625金币', emoji: '👑', tier: 7, value: 15625, mergeInto: 'coin8' },
   'coin8': { key: 'coin8', name: '78125金币', emoji: '🏆', tier: 8, value: 78125 },
   
-  // 特殊：仓库
-  'warehouse': { key: 'warehouse', name: '仓库', emoji: '🏪', tier: 0 },
+  // 特殊：仓库 - 使用📦更明显
+  'warehouse': { key: 'warehouse', name: '仓库', emoji: '📦', tier: 0 },
 };
 
 const WAREHOUSE_DROPS = [
