@@ -404,7 +404,203 @@ let mergeState = {
   nextId: 1,
   gridOffsetX: 0,
   gridOffsetY: 0,
+  // 购物者系统
+  shoppers: [],  // 当前购物者列表
+  maxShoppers: 3, // 最多同时3个购物者
 };
+
+// 购物者配置
+const SHOPPER_TYPES = [
+  { emoji: '👨', name: '农夫' },
+  { emoji: '👩', name: '村民' },
+  { emoji: '👴', name: '老爷爷' },
+  { emoji: '👵', name: '老奶奶' },
+  { emoji: '🧑', name: '旅行者' },
+  { emoji: '👨‍🌾', name: '园丁' },
+  { emoji: '👷', name: '工人' },
+  { emoji: '🧙', name: '魔法师' },
+];
+
+// 根据玩家进度获取可用的物品池
+function getShopperItemPool() {
+  const pool = [];
+  const mergeCount = SaveManager.data.statistics?.totalMerges || 0;
+  const level = SaveManager.data.highestLevel || 1;
+  
+  // 基础物品（总是可用）
+  pool.push({ key: 'wood1', weight: 10 });
+  pool.push({ key: 'stone1', weight: 10 });
+  
+  // 根据进度解锁更多物品
+  if (mergeCount >= 3 || level >= 2) {
+    pool.push({ key: 'wood2', weight: 8 });
+    pool.push({ key: 'stone2', weight: 8 });
+  }
+  if (mergeCount >= 10 || level >= 5) {
+    pool.push({ key: 'wood3', weight: 5 });
+    pool.push({ key: 'stone3', weight: 5 });
+    pool.push({ key: 'coin1', weight: 6 });
+  }
+  if (mergeCount >= 25 || level >= 10) {
+    pool.push({ key: 'wood4', weight: 3 });
+    pool.push({ key: 'stone4', weight: 3 });
+    pool.push({ key: 'coin2', weight: 4 });
+  }
+  if (mergeCount >= 50 || level >= 20) {
+    pool.push({ key: 'wood5', weight: 2 });
+    pool.push({ key: 'stone5', weight: 2 });
+    pool.push({ key: 'coin3', weight: 3 });
+  }
+  if (mergeCount >= 100 || level >= 35) {
+    pool.push({ key: 'coin4', weight: 1 });
+  }
+  
+  return pool;
+}
+
+// 根据物品计算奖励
+function calculateShopperReward(wants) {
+  let baseCoin = 0;
+  let baseDiamond = 0;
+  
+  wants.forEach(w => {
+    const item = ITEMS[w.key];
+    if (!item) return;
+    // 根据物品等级计算奖励
+    const tier = item.tier || 1;
+    baseCoin += tier * 15 * w.count;
+    if (tier >= 4) baseDiamond += Math.floor(tier / 2);
+  });
+  
+  return { coin: baseCoin, diamond: baseDiamond };
+}
+
+// 生成一个购物者
+function generateShopper() {
+  const pool = getShopperItemPool();
+  const totalWeight = pool.reduce((sum, p) => sum + p.weight, 0);
+  
+  // 随机选择1-3个不同物品
+  const wantCount = Math.min(pool.length, Math.floor(Math.random() * 3) + 1);
+  const wants = [];
+  const usedKeys = new Set();
+  
+  for (let i = 0; i < wantCount; i++) {
+    let rand = Math.random() * totalWeight;
+    for (const p of pool) {
+      if (usedKeys.has(p.key)) continue;
+      rand -= p.weight;
+      if (rand <= 0) {
+        const count = Math.floor(Math.random() * 2) + 1; // 1-2个
+        wants.push({ key: p.key, count });
+        usedKeys.add(p.key);
+        break;
+      }
+    }
+  }
+  
+  if (wants.length === 0) {
+    wants.push({ key: 'wood1', count: 1 });
+  }
+  
+  const shopperType = SHOPPER_TYPES[Math.floor(Math.random() * SHOPPER_TYPES.length)];
+  const reward = calculateShopperReward(wants);
+  
+  return {
+    id: Date.now() + Math.random(),
+    emoji: shopperType.emoji,
+    name: shopperType.name,
+    wants: wants,
+    reward: reward,
+    createdAt: Date.now(),
+    expiresIn: 10 * 60 * 1000, // 10分钟过期
+  };
+}
+
+// 检查并补充购物者
+function refreshShoppers() {
+  // 移除过期的购物者
+  const now = Date.now();
+  mergeState.shoppers = mergeState.shoppers.filter(s => 
+    now - s.createdAt < s.expiresIn
+  );
+  
+  // 补充购物者
+  while (mergeState.shoppers.length < mergeState.maxShoppers) {
+    mergeState.shoppers.push(generateShopper());
+  }
+  
+  saveShoppers();
+}
+
+// 检查玩家是否拥有足够的物品
+function checkShopperItems(shopper) {
+  for (const want of shopper.wants) {
+    const count = mergeState.items.filter(i => i.config.key === want.key).length;
+    if (count < want.count) return false;
+  }
+  return true;
+}
+
+// 完成购物者订单
+function fulfillShopper(shopper) {
+  if (!checkShopperItems(shopper)) {
+    showInfo('❌ 物品不足！');
+    return false;
+  }
+  
+  // 移除物品
+  for (const want of shopper.wants) {
+    let remaining = want.count;
+    for (let i = mergeState.items.length - 1; i >= 0 && remaining > 0; i--) {
+      if (mergeState.items[i].config.key === want.key) {
+        mergeState.items.splice(i, 1);
+        remaining--;
+      }
+    }
+  }
+  
+  // 发放奖励
+  if (shopper.reward.coin > 0) {
+    SaveManager.addCoins(shopper.reward.coin);
+  }
+  if (shopper.reward.diamond > 0) {
+    SaveManager.addResources({ diamond: shopper.reward.diamond });
+  }
+  
+  // 移除购物者
+  const idx = mergeState.shoppers.findIndex(s => s.id === shopper.id);
+  if (idx >= 0) mergeState.shoppers.splice(idx, 1);
+  
+  // 立即补充新购物者
+  mergeState.shoppers.push(generateShopper());
+  
+  showInfo(`🎉 ${shopper.emoji} ${shopper.name}满意地离开了！+💰${shopper.reward.coin}${shopper.reward.diamond > 0 ? ` +💎${shopper.reward.diamond}` : ''}`);
+  
+  // 更新每日任务
+  updateDailyTaskProgress('shopper', 1);
+  
+  saveMergeGame();
+  saveShoppers();
+  return true;
+}
+
+// 保存购物者
+function saveShoppers() {
+  SaveManager.data.shoppers = mergeState.shoppers;
+  SaveManager.save();
+}
+
+// 加载购物者
+function loadShoppers() {
+  const saved = SaveManager.data.shoppers;
+  if (saved && saved.length > 0) {
+    mergeState.shoppers = saved;
+  } else {
+    mergeState.shoppers = [];
+  }
+  refreshShoppers();
+}
 
 const MERGE_GRID = { 
   cols: 6, 
@@ -425,8 +621,8 @@ function initMergeScene() {
   const safeTop = systemInfo.safeArea ? systemInfo.safeArea.top : 40;
   const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
   
-  // 顶部UI高度 + 安全区
-  const topMargin = Math.max(safeTop, 35) + 85;
+  // 顶部UI高度 + 购物者区域 + 安全区
+  const topMargin = Math.max(safeTop, 35) + 160; // 增加购物者区域高度
   const bottomMargin = Math.max(safeBottom, 20) + 55;
   const availableHeight = GameConfig.HEIGHT - topMargin - bottomMargin;
   mergeState.gridOffsetY = topMargin + (availableHeight - gridHeight) / 2;
@@ -450,7 +646,10 @@ function initMergeScene() {
     saveMergeGame();
   }
   
-  showInfo('点击仓库获取物品，点击两个相同物品合成！');
+  // 加载购物者
+  loadShoppers();
+  
+  showInfo('点击仓库获取物品，完成购物者订单获得奖励！');
 }
 
 function saveMergeGame() {
@@ -592,6 +791,30 @@ function handleMergeTouch(x, y) {
     return;
   }
   
+  // 购物者卡片点击检测
+  if (mergeState.shopperCards) {
+    for (const card of mergeState.shopperCards) {
+      if (x >= card.x && x <= card.x + card.w &&
+          y >= card.y && y <= card.y + card.h) {
+        if (checkShopperItems(card.shopper)) {
+          fulfillShopper(card.shopper);
+        } else {
+          // 显示缺少什么
+          const missing = [];
+          for (const want of card.shopper.wants) {
+            const hasCount = mergeState.items.filter(i => i.config.key === want.key).length;
+            if (hasCount < want.count) {
+              const item = ITEMS[want.key];
+              missing.push(`${item.emoji}x${want.count - hasCount}`);
+            }
+          }
+          showInfo(`还需要: ${missing.join(' ')}`);
+        }
+        return;
+      }
+    }
+  }
+  
   for (const item of mergeState.items) {
     const pos = getMergeCellCenter(item.x, item.y);
     const halfSize = (cardSize / 2) * item.scale;
@@ -643,6 +866,8 @@ function renderMergeScene() {
   drawMergeBackground();
   // 顶部UI
   drawMergeTopUI();
+  // 购物者区域
+  drawShopperArea();
   // 网格
   drawMergeGrid();
   // 物品
@@ -653,6 +878,96 @@ function renderMergeScene() {
   drawBottomInfo();
   // 返回按钮
   drawBackButton();
+}
+
+// 绘制购物者区域
+function drawShopperArea() {
+  const safeTop = systemInfo.safeArea ? systemInfo.safeArea.top : 40;
+  const topPadding = Math.max(safeTop, 35);
+  const shopperY = topPadding + 80;
+  const W = GameConfig.WIDTH;
+  
+  // 购物者背景面板
+  ctx.fillStyle = 'rgba(139, 90, 43, 0.85)';
+  roundRect(10 * scale, shopperY * scale, (W - 20) * scale, 75 * scale, 10 * scale);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1 * scale;
+  roundRect(10 * scale, shopperY * scale, (W - 20) * scale, 75 * scale, 10 * scale);
+  ctx.stroke();
+  
+  // 标题
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${12 * scale}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🛒 购物者', 20 * scale, (shopperY + 12) * scale);
+  
+  // 绘制每个购物者
+  const cardWidth = (W - 50) / 3;
+  mergeState.shoppers.forEach((shopper, idx) => {
+    const cardX = 15 + idx * (cardWidth + 5);
+    const cardY = shopperY + 22;
+    
+    // 检查是否可完成
+    const canFulfill = checkShopperItems(shopper);
+    
+    // 卡片背景
+    ctx.fillStyle = canFulfill ? 'rgba(76, 175, 80, 0.9)' : 'rgba(50, 50, 50, 0.7)';
+    roundRect(cardX * scale, cardY * scale, cardWidth * scale, 48 * scale, 6 * scale);
+    ctx.fill();
+    
+    if (canFulfill) {
+      ctx.strokeStyle = '#4CAF50';
+      ctx.lineWidth = 2 * scale;
+      roundRect(cardX * scale, cardY * scale, cardWidth * scale, 48 * scale, 6 * scale);
+      ctx.stroke();
+    }
+    
+    // 购物者头像
+    ctx.font = `${18 * scale}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(shopper.emoji, (cardX + 5) * scale, (cardY + 16) * scale);
+    
+    // 需要的物品
+    ctx.font = `${14 * scale}px sans-serif`;
+    let wantX = cardX + 28;
+    shopper.wants.forEach(want => {
+      const item = ITEMS[want.key];
+      if (item) {
+        const hasCount = mergeState.items.filter(i => i.config.key === want.key).length;
+        const color = hasCount >= want.count ? '#4CAF50' : '#ff6b6b';
+        ctx.fillStyle = color;
+        ctx.fillText(`${item.emoji}${want.count > 1 ? 'x' + want.count : ''}`, wantX * scale, (cardY + 16) * scale);
+        wantX += 30;
+      }
+    });
+    
+    // 奖励
+    ctx.font = `${11 * scale}px sans-serif`;
+    ctx.fillStyle = '#ffd700';
+    ctx.textAlign = 'left';
+    let rewardText = `💰${shopper.reward.coin}`;
+    if (shopper.reward.diamond > 0) rewardText += ` 💎${shopper.reward.diamond}`;
+    ctx.fillText(rewardText, (cardX + 5) * scale, (cardY + 38) * scale);
+    
+    // 可完成标记
+    if (canFulfill) {
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${10 * scale}px sans-serif`;
+      ctx.textAlign = 'right';
+      ctx.fillText('点击交付→', (cardX + cardWidth - 5) * scale, (cardY + 38) * scale);
+    }
+  });
+  
+  // 保存购物者卡片位置供触摸检测
+  mergeState.shopperCards = mergeState.shoppers.map((s, idx) => ({
+    shopper: s,
+    x: 15 + idx * (cardWidth + 5),
+    y: shopperY + 22,
+    w: cardWidth,
+    h: 48,
+  }));
 }
 
 function drawMergeBackground() {
@@ -2687,6 +3002,7 @@ const DAILY_TASKS_CONFIG = [
   { id: 'coin_500', emoji: '💰', name: '收集500金币', target: 500, reward: { diamond: 5 }, rewardText: '💎 5' },
   { id: 'feed_puppy', emoji: '🐕', name: '喂小狗3次', target: 3, reward: { coin: 80 }, rewardText: '💰 80' },
   { id: 'match3_1', emoji: '⭐', name: '完成1关三星', target: 1, reward: { diamond: 3 }, rewardText: '💎 3' },
+  { id: 'shopper_3', emoji: '🛒', name: '完成3个订单', target: 3, reward: { coin: 120, diamond: 2 }, rewardText: '💰120 💎2' },
 ];
 
 let dailyTaskState = {
@@ -2722,7 +3038,7 @@ function initDailyTasks() {
 
 function updateDailyTaskProgress(type, amount = 1) {
   if (!SaveManager.data.dailyTasks.stats) {
-    SaveManager.data.dailyTasks.stats = { matches: 0, merges: 0, coins: 0, feeds: 0, stars: 0 };
+    SaveManager.data.dailyTasks.stats = { matches: 0, merges: 0, coins: 0, feeds: 0, stars: 0, shoppers: 0 };
   }
   const stats = SaveManager.data.dailyTasks.stats;
   
@@ -2732,6 +3048,7 @@ function updateDailyTaskProgress(type, amount = 1) {
     case 'coin': stats.coins += amount; break;
     case 'feed': stats.feeds += amount; break;
     case 'star': stats.stars += amount; break;
+    case 'shopper': stats.shoppers = (stats.shoppers || 0) + amount; break;
   }
   
   // 更新任务进度
@@ -2743,6 +3060,7 @@ function updateDailyTaskProgress(type, amount = 1) {
       case 'coin_500': task.progress = stats.coins; break;
       case 'feed_puppy': task.progress = stats.feeds; break;
       case 'match3_1': task.progress = stats.stars; break;
+      case 'shopper_3': task.progress = stats.shoppers || 0; break;
     }
   }
   
