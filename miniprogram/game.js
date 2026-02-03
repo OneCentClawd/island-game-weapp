@@ -4948,23 +4948,28 @@ function renderLeaderboardScene() {
   ctx.textAlign = 'center';
   ctx.fillText('🔄 刷新', (W - 55) * scale, (bottomY + 22) * scale);
   
-  // 返回按钮 - 左上角胶囊样式
-  const btnY = capsuleBottom - 18;
-  // 背景
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  roundRect(15 * scale, btnY * scale, 64 * scale, 32 * scale, 16 * scale);
+  // 返回按钮 - 左上角精致胶囊
+  const btnX = 15;
+  const btnY = capsuleBottom - 20;
+  const btnW = 70;
+  const btnH = 34;
+  
+  // 阴影
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  roundRect((btnX + 2) * scale, (btnY + 2) * scale, btnW * scale, btnH * scale, 17 * scale);
   ctx.fill();
-  // 边框
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-  ctx.lineWidth = 1 * scale;
-  roundRect(15 * scale, btnY * scale, 64 * scale, 32 * scale, 16 * scale);
-  ctx.stroke();
+  
+  // 主体渐变背景
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  roundRect(btnX * scale, btnY * scale, btnW * scale, btnH * scale, 17 * scale);
+  ctx.fill();
+  
   // 文字
-  ctx.fillStyle = '#fff';
-  ctx.font = `bold ${13 * scale}px sans-serif`;
+  ctx.fillStyle = '#667eea';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('‹ 返回', 47 * scale, (btnY + 16) * scale);
+  ctx.fillText('← 返回', (btnX + btnW / 2) * scale, (btnY + btnH / 2) * scale);
 }
 
 // ===================
