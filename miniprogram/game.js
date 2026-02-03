@@ -226,6 +226,7 @@ const SaveManager = {
 // ===================
 let currentScene = 'MainMenu';
 let sceneData = {};
+let mainMenuState = { buttons: [], resY: 50 };
 
 // 特效
 let effects = [];
@@ -269,6 +270,11 @@ function renderMainMenu() {
   const H = GameConfig.HEIGHT;
   const centerX = W / 2;
   
+  // 安全区域
+  const safeTop = systemInfo.safeArea ? systemInfo.safeArea.top : 40;
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const menuBarHeight = systemInfo.statusBarHeight || 20;
+  
   // 渐变背景
   const gradient = ctx.createLinearGradient(0, 0, 0, H * scale);
   gradient.addColorStop(0, '#4ecdc4');
@@ -276,91 +282,94 @@ function renderMainMenu() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W * scale, H * scale);
   
-  // 游戏标题
-  ctx.font = `${120 * scale}px sans-serif`;
+  // 顶部资源栏 - 放在安全区域下方
+  const resY = safeTop + 15;
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(`⚡${SaveManager.getEnergy()}`, 15 * scale, resY * scale);
+  ctx.fillText(`💰${SaveManager.getResources().coin}`, 85 * scale, resY * scale);
+  ctx.fillText(`💎${SaveManager.getResources().diamond}`, 155 * scale, resY * scale);
+  
+  // 右上角图标 - 避开胶囊按钮
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('🏝️', centerX * scale, 200 * scale);
+  ctx.font = `${28 * scale}px sans-serif`;
+  ctx.fillText('🏆', (W - 90) * scale, resY * scale);
+  ctx.fillText('⚙️', (W - 45) * scale, resY * scale);
+  
+  // 游戏标题 - 位置根据屏幕高度调整
+  const titleY = safeTop + 80;
+  ctx.font = `${80 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('🏝️', centerX * scale, titleY * scale);
   
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${64 * scale}px sans-serif`;
+  ctx.font = `bold ${48 * scale}px sans-serif`;
   ctx.shadowColor = '#000';
   ctx.shadowBlur = 5 * scale;
-  ctx.shadowOffsetX = 3 * scale;
-  ctx.shadowOffsetY = 3 * scale;
-  ctx.fillText('小岛物语', centerX * scale, 350 * scale);
+  ctx.shadowOffsetX = 2 * scale;
+  ctx.shadowOffsetY = 2 * scale;
+  ctx.fillText('小岛物语', centerX * scale, (titleY + 90) * scale);
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
   
   ctx.fillStyle = '#ffe66d';
-  ctx.font = `${24 * scale}px sans-serif`;
-  ctx.fillText('Island Story', centerX * scale, 420 * scale);
-  
-  // 按钮
-  const buttons = [
-    { y: 520, text: '🎮 消消乐', scene: 'LevelSelect' },
-    { y: 600, text: '🔄 合成模式', scene: 'Merge' },
-    { y: 680, text: '🏝️ 我的小岛', scene: 'Island' },
-    { y: 760, text: '📋 每日任务', scene: 'DailyTask' },
-    { y: 840, text: '🛒 商店', scene: 'Shop' },
-  ];
-  
-  buttons.forEach(btn => {
-    drawButton(centerX, btn.y, 280, 60, btn.text);
-  });
-  
-  // 右上角图标
-  ctx.font = `${36 * scale}px sans-serif`;
-  ctx.fillText('🏆', (W - 100) * scale, 100 * scale);
-  ctx.fillText('⚙️', (W - 50) * scale, 100 * scale);
-  
-  // 资源显示
-  const resources = SaveManager.getResources();
-  const energy = SaveManager.getEnergy();
   ctx.font = `${18 * scale}px sans-serif`;
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'left';
+  ctx.fillText('Island Story', centerX * scale, (titleY + 130) * scale);
   
-  const resItems = [
-    { emoji: '⚡', value: energy },
-    { emoji: '💰', value: resources.coin },
-    { emoji: '💎', value: resources.diamond },
-    { emoji: '🪵', value: resources.wood },
-    { emoji: '🪨', value: resources.stone },
+  // 按钮区域 - 在标题和底部之间均匀分布
+  const btnStartY = titleY + 170;
+  const btnEndY = H - safeBottom - 50;
+  const btnCount = 5;
+  const btnSpacing = Math.min(70, (btnEndY - btnStartY) / btnCount);
+  
+  const buttons = [
+    { text: '🎮 消消乐', scene: 'LevelSelect' },
+    { text: '🔄 合成模式', scene: 'Merge' },
+    { text: '🏝️ 我的小岛', scene: 'Island' },
+    { text: '📋 每日任务', scene: 'DailyTask' },
+    { text: '🛒 商店', scene: 'Shop' },
   ];
   
-  resItems.forEach((item, i) => {
-    ctx.fillText(`${item.emoji} ${item.value}`, (50 + i * 100) * scale, 100 * scale);
+  buttons.forEach((btn, i) => {
+    const y = btnStartY + i * btnSpacing;
+    drawButton(centerX, y, Math.min(260, W - 80), 50, btn.text);
   });
+  
+  // 保存按钮位置供触摸检测用
+  mainMenuState.buttons = buttons.map((btn, i) => ({
+    ...btn,
+    y: btnStartY + i * btnSpacing,
+    w: Math.min(260, W - 80),
+    h: 50,
+  }));
+  mainMenuState.resY = resY;
   
   // 版本
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.font = `${16 * scale}px sans-serif`;
-  ctx.fillText(`v${GameConfig.VERSION} - 开发中`, centerX * scale, (H - 50) * scale);
+  ctx.font = `${12 * scale}px sans-serif`;
+  ctx.fillText(`v${GameConfig.VERSION} - 开发中`, centerX * scale, (H - safeBottom - 15) * scale);
 }
 
 function handleMainMenuTouch(x, y) {
   const centerX = GameConfig.WIDTH / 2;
+  const W = GameConfig.WIDTH;
   
-  const buttons = [
-    { y: 520, scene: 'LevelSelect' },
-    { y: 600, scene: 'Merge' },
-    { y: 680, scene: 'Island' },
-    { y: 760, scene: 'DailyTask' },
-    { y: 840, scene: 'Shop' },
-  ];
-  
-  for (const btn of buttons) {
-    if (x >= centerX - 140 && x <= centerX + 140 && y >= btn.y - 30 && y <= btn.y + 30) {
+  // 检查按钮点击
+  for (const btn of mainMenuState.buttons) {
+    const halfW = btn.w / 2;
+    const halfH = btn.h / 2;
+    if (x >= centerX - halfW && x <= centerX + halfW && 
+        y >= btn.y - halfH && y <= btn.y + halfH) {
       switchScene(btn.scene);
       return;
     }
   }
   
   // 成就图标
-  if (x >= GameConfig.WIDTH - 120 && x <= GameConfig.WIDTH - 80 && y >= 80 && y <= 120) {
+  if (x >= W - 110 && x <= W - 70 && y >= mainMenuState.resY - 15 && y <= mainMenuState.resY + 15) {
     switchScene('Achievement');
   }
 }
