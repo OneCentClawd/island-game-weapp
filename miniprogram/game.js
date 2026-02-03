@@ -2823,9 +2823,10 @@ function handleLevelSelectTouch(x, y) {
   const cols = 4;
   const totalLevels = MATCH3_LEVELS.length;
   const btnRadius = 26;
-  const spacingX = (GameConfig.WIDTH - 60) / (cols - 1);
+  const padding = 45;
+  const spacingX = (GameConfig.WIDTH - padding * 2) / (cols - 1);
   const spacingY = 75;
-  const startX = 30 + btnRadius;
+  const startX = padding;
   const scrollY = levelSelectState.scrollY || 0;
   
   for (let i = 0; i < totalLevels; i++) {
@@ -2884,9 +2885,10 @@ function renderLevelSelectScene() {
   const cols = 4;
   const totalLevels = MATCH3_LEVELS.length;
   const btnRadius = 26;
-  const spacingX = (W - 60) / (cols - 1);
+  const padding = 45;  // 左右边距
+  const spacingX = (W - padding * 2) / (cols - 1);
   const spacingY = 75;
-  const startX = 30 + btnRadius;
+  const startX = padding;
   const scrollY = levelSelectState.scrollY || 0;
   
   // 计算最大滚动
