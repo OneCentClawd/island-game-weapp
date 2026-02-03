@@ -484,14 +484,7 @@ function renderMainMenu() {
   
   ctx.fillStyle = '#fff';
   ctx.font = `bold ${42 * scale}px sans-serif`;
-  ctx.shadowColor = '#000';
-  ctx.shadowBlur = 5 * scale;
-  ctx.shadowOffsetX = 2 * scale;
-  ctx.shadowOffsetY = 2 * scale;
   ctx.fillText('小岛物语', centerX * scale, (titleY + 80) * scale);
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
   
   ctx.fillStyle = '#ffe66d';
   ctx.font = `${16 * scale}px sans-serif`;
