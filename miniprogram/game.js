@@ -338,6 +338,7 @@ function switchScene(sceneName, data = {}) {
     case 'Shop': initShopScene(); break;
     case 'Achievement': initAchievementScene(); break;
     case 'DailyTask': initDailyTaskScene(); break;
+    case 'Leaderboard': initLeaderboardScene(); break;
   }
 }
 
@@ -382,12 +383,12 @@ function renderMainMenu() {
   ctx.fillText(`💰${SaveManager.getResources().coin}`, 80 * scale, resY * scale);
   ctx.fillText(`💎${SaveManager.getResources().diamond}`, 150 * scale, resY * scale);
   
-  // 成就和设置图标 - 放在底部，版本号上方
+  // 排行榜和设置图标 - 放在底部，版本号上方
   const iconY = H - safeBottom - 50;
   ctx.textAlign = 'center';
   ctx.font = `${28 * scale}px sans-serif`;
-  ctx.fillText('🏆', 40 * scale, iconY * scale);  // 左下角
-  ctx.fillText('⚙️', (W - 40) * scale, iconY * scale);  // 右下角
+  ctx.fillText('🏆', 40 * scale, iconY * scale);  // 左下角 - 排行榜
+  ctx.fillText('⚙️', (W - 40) * scale, iconY * scale);  // 右下角 - 设置
   
   // 保存图标位置
   mainMenuState.iconY = iconY;
@@ -465,9 +466,9 @@ function handleMainMenuTouch(x, y) {
   
   const iconY = mainMenuState.iconY || 100;
   
-  // 成就图标 - 左下角
+  // 排行榜图标 - 左下角
   if (x >= 15 && x <= 65 && y >= iconY - 20 && y <= iconY + 20) {
-    switchScene('Achievement');
+    switchScene('Leaderboard');
     return;
   }
   
@@ -4694,6 +4695,260 @@ function renderDailyTaskScene() {
 }
 
 // ===================
+// 排行榜场景
+// ===================
+let leaderboardState = {
+  tab: 'match3_level',  // 当前tab: match3_level, match3_score, merge_coin
+  rankings: [],
+  myRank: { rank: -1, score: 0 },
+  loading: true,
+  tabs: [
+    { key: 'match3_level', name: '关卡进度', icon: '🎮' },
+    { key: 'match3_score', name: '消消乐分数', icon: '💎' },
+    { key: 'merge_coin', name: '合成金币', icon: '💰' },
+  ]
+};
+
+function initLeaderboardScene() {
+  leaderboardState.loading = true;
+  leaderboardState.rankings = [];
+  loadLeaderboard(leaderboardState.tab);
+}
+
+async function loadLeaderboard(type) {
+  leaderboardState.loading = true;
+  leaderboardState.tab = type;
+  
+  // 并行获取排行榜和自己排名
+  const [rankResult, myResult] = await Promise.all([
+    CloudService.getRankings(type, 50),
+    CloudService.getMyRank(type)
+  ]);
+  
+  if (rankResult.success) {
+    leaderboardState.rankings = rankResult.rankings;
+  }
+  if (myResult.success) {
+    leaderboardState.myRank = myResult;
+  }
+  
+  leaderboardState.loading = false;
+}
+
+function handleLeaderboardTouch(x, y) {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const bottomY = H - Math.max(safeBottom, 15) - 45;
+  
+  // 返回按钮
+  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
+    switchScene('MainMenu');
+    return;
+  }
+  
+  // Tab切换
+  let capsuleBottom = 80;
+  try {
+    const capsule = wx.getMenuButtonBoundingClientRect();
+    capsuleBottom = capsule.bottom + 15;
+  } catch (e) {}
+  
+  const tabY = capsuleBottom + 50;
+  const tabWidth = (W - 40) / 3;
+  
+  for (let i = 0; i < leaderboardState.tabs.length; i++) {
+    const tabX = 20 + i * tabWidth;
+    if (x >= tabX && x <= tabX + tabWidth && y >= tabY - 5 && y <= tabY + 35) {
+      const tab = leaderboardState.tabs[i];
+      if (tab.key !== leaderboardState.tab) {
+        loadLeaderboard(tab.key);
+      }
+      return;
+    }
+  }
+  
+  // 上传分数按钮
+  const uploadBtnY = bottomY;
+  if (x >= W - 95 && x <= W - 15 && y >= uploadBtnY && y <= uploadBtnY + 36) {
+    uploadMyScore();
+    return;
+  }
+}
+
+async function uploadMyScore() {
+  showInfo('⏳ 上传中...');
+  
+  // 根据当前tab上传对应分数
+  const tab = leaderboardState.tab;
+  let score = 0;
+  let level = 1;
+  
+  if (tab === 'match3_level') {
+    score = SaveManager.data.highestLevel || 1;
+    level = score;
+  } else if (tab === 'match3_score') {
+    // 找所有关卡的最高分
+    score = Math.max(...Object.values(SaveManager.data.levelStars || {}).map(s => s * 1000), 0);
+  } else if (tab === 'merge_coin') {
+    score = SaveManager.data.totalCoinEarned || SaveManager.getResources().coin;
+  }
+  
+  const result = await CloudService.submitScore(tab, score, level);
+  
+  if (result.success) {
+    showInfo('✅ 上传成功！');
+    loadLeaderboard(tab);  // 刷新排行榜
+  } else {
+    showInfo('❌ 上传失败');
+  }
+}
+
+function renderLeaderboardScene() {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  
+  // 背景
+  const gradient = ctx.createLinearGradient(0, 0, 0, H * scale);
+  gradient.addColorStop(0, '#667eea');
+  gradient.addColorStop(1, '#764ba2');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, W * scale, H * scale);
+  
+  // 安全区域
+  let capsuleBottom = 80;
+  try {
+    const capsule = wx.getMenuButtonBoundingClientRect();
+    capsuleBottom = capsule.bottom + 15;
+  } catch (e) {}
+  
+  // 标题
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${22 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('🏆 排行榜', (W / 2) * scale, capsuleBottom * scale);
+  
+  // Tab栏
+  const tabY = capsuleBottom + 50;
+  const tabWidth = (W - 40) / 3;
+  
+  leaderboardState.tabs.forEach((tab, i) => {
+    const tabX = 20 + i * tabWidth;
+    const isActive = tab.key === leaderboardState.tab;
+    
+    // Tab背景
+    ctx.fillStyle = isActive ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
+    roundRect(tabX * scale, tabY * scale, (tabWidth - 5) * scale, 30 * scale, 8 * scale);
+    ctx.fill();
+    
+    // Tab文字
+    ctx.fillStyle = isActive ? '#fff' : 'rgba(255,255,255,0.7)';
+    ctx.font = `${12 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${tab.icon} ${tab.name}`, (tabX + tabWidth / 2 - 2) * scale, (tabY + 18) * scale);
+  });
+  
+  // 排行榜列表区域
+  const listY = tabY + 50;
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const listHeight = H - listY - safeBottom - 60;
+  
+  // 列表背景
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  roundRect(15 * scale, listY * scale, (W - 30) * scale, listHeight * scale, 12 * scale);
+  ctx.fill();
+  
+  if (leaderboardState.loading) {
+    ctx.fillStyle = '#fff';
+    ctx.font = `${16 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('⏳ 加载中...', (W / 2) * scale, (listY + listHeight / 2) * scale);
+  } else if (leaderboardState.rankings.length === 0) {
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = `${14 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('暂无数据', (W / 2) * scale, (listY + 40) * scale);
+    ctx.fillText('点击右下角上传您的分数！', (W / 2) * scale, (listY + 65) * scale);
+  } else {
+    // 表头
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = `${11 * scale}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText('排名', 25 * scale, (listY + 20) * scale);
+    ctx.fillText('玩家', 70 * scale, (listY + 20) * scale);
+    ctx.textAlign = 'right';
+    ctx.fillText('分数', (W - 25) * scale, (listY + 20) * scale);
+    
+    // 排行榜项目
+    const itemHeight = 40;
+    const maxVisible = Math.floor((listHeight - 40) / itemHeight);
+    
+    leaderboardState.rankings.slice(0, maxVisible).forEach((item, i) => {
+      const iy = listY + 35 + i * itemHeight;
+      
+      // 排名背景（前三名特殊颜色）
+      if (i < 3) {
+        const medals = ['🥇', '🥈', '🥉'];
+        ctx.font = `${20 * scale}px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(medals[i], 22 * scale, (iy + 14) * scale);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = `bold ${14 * scale}px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`${i + 1}`, 28 * scale, (iy + 10) * scale);
+      }
+      
+      // 昵称
+      ctx.fillStyle = '#fff';
+      ctx.font = `${13 * scale}px sans-serif`;
+      ctx.textAlign = 'left';
+      const nickname = item.nickname.length > 8 ? item.nickname.slice(0, 8) + '...' : item.nickname;
+      ctx.fillText(nickname, 70 * scale, (iy + 10) * scale);
+      
+      // 分数
+      ctx.fillStyle = '#ffe66d';
+      ctx.font = `bold ${14 * scale}px sans-serif`;
+      ctx.textAlign = 'right';
+      ctx.fillText(item.score.toLocaleString(), (W - 25) * scale, (iy + 10) * scale);
+    });
+  }
+  
+  // 我的排名
+  const myRankY = listY + listHeight + 10;
+  ctx.fillStyle = 'rgba(255,215,0,0.2)';
+  roundRect(15 * scale, myRankY * scale, (W - 110) * scale, 36 * scale, 10 * scale);
+  ctx.fill();
+  
+  ctx.fillStyle = '#ffd700';
+  ctx.font = `bold ${13 * scale}px sans-serif`;
+  ctx.textAlign = 'left';
+  const myRankText = leaderboardState.myRank.rank > 0 
+    ? `我的排名: 第${leaderboardState.myRank.rank}名 (${leaderboardState.myRank.score}分)`
+    : '我的排名: 暂未上榜';
+  ctx.fillText(myRankText, 25 * scale, (myRankY + 22) * scale);
+  
+  // 上传按钮
+  const bottomY = H - Math.max(safeBottom, 15) - 45;
+  ctx.fillStyle = '#4CAF50';
+  roundRect((W - 95) * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${13 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('📤 上传', (W - 55) * scale, (bottomY + 22) * scale);
+  
+  // 返回按钮
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('← 返回', 55 * scale, (bottomY + 22) * scale);
+}
+
+// ===================
 // 通用UI组件
 // ===================
 function drawButton(x, y, w, h, text) {
@@ -4809,6 +5064,7 @@ wx.onTouchStart(function(e) {
       case 'Shop': handleShopTouch(x, y); break;
       case 'Achievement': handleAchievementTouch(x, y); break;
       case 'DailyTask': handleDailyTaskTouch(x, y); break;
+      case 'Leaderboard': handleLeaderboardTouch(x, y); break;
     }
   }
 });
@@ -4853,6 +5109,7 @@ function render() {
     case 'Shop': renderShopScene(); break;
     case 'Achievement': renderAchievementScene(); break;
     case 'DailyTask': renderDailyTaskScene(); break;
+    case 'Leaderboard': renderLeaderboardScene(); break;
   }
   
   requestAnimationFrame(render);
