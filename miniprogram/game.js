@@ -1789,61 +1789,201 @@ function renderShopScene() {
 // ===================
 function initAchievementScene() {}
 
-function handleAchievementTouch(x, y) {
-  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
-  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+// ===================
+// 成就系统
+// ===================
+const ACHIEVEMENTS_CONFIG = [
+  { id: 'first_level', emoji: '🌟', name: '初来乍到', desc: '完成第一关', reward: { diamond: 5 }, check: () => SaveManager.data.highestLevel > 1 },
+  { id: 'level_5', emoji: '🎮', name: '小试牛刀', desc: '通关5个关卡', reward: { diamond: 10 }, check: () => SaveManager.data.highestLevel > 5 },
+  { id: 'level_10', emoji: '🎯', name: '游戏达人', desc: '通关10个关卡', reward: { diamond: 20 }, check: () => SaveManager.data.highestLevel > 10 },
+  { id: 'level_20', emoji: '👑', name: '通关大师', desc: '通关全部20关', reward: { diamond: 50 }, check: () => SaveManager.data.highestLevel > 20 },
+  { id: 'merge_10', emoji: '🔄', name: '合成新手', desc: '合成10次', reward: { coin: 100 }, check: () => (SaveManager.data.statistics?.totalMerges || 0) >= 10 },
+  { id: 'merge_100', emoji: '⚗️', name: '合成专家', desc: '合成100次', reward: { coin: 500 }, check: () => (SaveManager.data.statistics?.totalMerges || 0) >= 100 },
+  { id: 'coin_1000', emoji: '💰', name: '小富翁', desc: '累计获得1000金币', reward: { diamond: 10 }, check: () => (SaveManager.data.statistics?.totalCoins || 0) >= 1000 },
+  { id: 'coin_10000', emoji: '💎', name: '大富翁', desc: '累计获得10000金币', reward: { diamond: 30 }, check: () => (SaveManager.data.statistics?.totalCoins || 0) >= 10000 },
+  { id: 'puppy_love_10', emoji: '🐕', name: '小狗的朋友', desc: '小狗好感度达到10', reward: { coin: 200 }, check: () => (islandState?.puppy?.love || 0) >= 10 },
+  { id: 'puppy_love_50', emoji: '❤️', name: '小狗的挚友', desc: '小狗好感度达到50', reward: { diamond: 20 }, check: () => (islandState?.puppy?.love || 0) >= 50 },
+  { id: 'all_stars', emoji: '⭐', name: '完美主义', desc: '任意关卡获得三星', reward: { diamond: 15 }, check: () => Object.values(SaveManager.data.levelStars || {}).some(s => s >= 3) },
+];
+
+let achievementState = {
+  claimed: [], // 已领取奖励的成就
+};
+
+function initAchievements() {
+  achievementState.claimed = SaveManager.data.achievementsClaimed || [];
+}
+
+function claimAchievement(id) {
+  if (achievementState.claimed.includes(id)) return false;
   
+  const ach = ACHIEVEMENTS_CONFIG.find(a => a.id === id);
+  if (!ach || !ach.check()) return false;
+  
+  achievementState.claimed.push(id);
+  SaveManager.data.achievementsClaimed = achievementState.claimed;
+  
+  if (ach.reward.diamond) SaveManager.addResources({ diamond: ach.reward.diamond });
+  if (ach.reward.coin) SaveManager.addResources({ coin: ach.reward.coin });
+  
+  SaveManager.save();
+  showInfo(`🎉 成就达成！${ach.name} +${ach.reward.diamond ? '💎' + ach.reward.diamond : '💰' + ach.reward.coin}`);
+  return true;
+}
+
+function handleAchievementTouch(x, y) {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const bottomY = H - Math.max(safeBottom, 15) - 45;
+  
+  // 返回按钮
   if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
     switchScene('MainMenu');
     return;
   }
+  
+  // 成就领取按钮
+  let capsuleBottom = 80;
+  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
+  
+  const startY = capsuleBottom + 50;
+  const itemHeight = 75;
+  const spacing = 8;
+  
+  for (let i = 0; i < ACHIEVEMENTS_CONFIG.length; i++) {
+    const ach = ACHIEVEMENTS_CONFIG[i];
+    const iy = startY + i * (itemHeight + spacing);
+    
+    // 检测领取按钮
+    const btnX = W - 80;
+    if (x >= btnX && x <= btnX + 60 && y >= iy + 20 && y <= iy + 55) {
+      const done = ach.check();
+      const claimed = achievementState.claimed.includes(ach.id);
+      
+      if (claimed) {
+        showInfo('✅ 已领取');
+      } else if (done) {
+        claimAchievement(ach.id);
+      } else {
+        showInfo('❌ 成就未达成');
+      }
+      return;
+    }
+  }
 }
 
 function renderAchievementScene() {
-  const gradient = ctx.createLinearGradient(0, 0, 0, GameConfig.HEIGHT * scale);
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  
+  initAchievements();
+  
+  // 背景
+  const gradient = ctx.createLinearGradient(0, 0, 0, H * scale);
   gradient.addColorStop(0, '#ffecd2');
   gradient.addColorStop(1, '#fcb69f');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, GameConfig.WIDTH * scale, GameConfig.HEIGHT * scale);
+  ctx.fillRect(0, 0, W * scale, H * scale);
   
+  // 安全区域
+  let capsuleBottom = 80;
+  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
+  
+  // 标题
   ctx.fillStyle = '#333';
-  ctx.font = `bold ${36 * scale}px sans-serif`;
+  ctx.font = `bold ${26 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('🏆 成就', GameConfig.WIDTH / 2 * scale, 100 * scale);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🏆 成就', W / 2 * scale, capsuleBottom * scale);
   
-  const achievements = [
-    { emoji: '🌟', name: '初来乍到', desc: '完成第一关', done: SaveManager.data.highestLevel > 1 },
-    { emoji: '🔥', name: '连击大师', desc: '达成5连击', done: false },
-    { emoji: '💰', name: '小富翁', desc: '累计获得1000金币', done: SaveManager.data.statistics.totalCoins >= 1000 },
-    { emoji: '🔄', name: '合成新手', desc: '合成10次', done: SaveManager.data.statistics.totalMerges >= 10 },
-  ];
+  // 统计
+  const completed = ACHIEVEMENTS_CONFIG.filter(a => a.check()).length;
+  ctx.font = `${13 * scale}px sans-serif`;
+  ctx.fillStyle = '#666';
+  ctx.fillText(`已完成 ${completed}/${ACHIEVEMENTS_CONFIG.length}`, W / 2 * scale, (capsuleBottom + 25) * scale);
   
-  achievements.forEach((a, i) => {
-    const y = 180 + i * 100;
-    ctx.fillStyle = a.done ? 'rgba(76,175,80,0.3)' : 'rgba(0,0,0,0.1)';
-    roundRect(50 * scale, y * scale, (GameConfig.WIDTH - 100) * scale, 80 * scale, 15 * scale);
+  // 成就列表
+  const startY = capsuleBottom + 50;
+  const itemHeight = 75;
+  const spacing = 8;
+  
+  ACHIEVEMENTS_CONFIG.forEach((ach, i) => {
+    const iy = startY + i * (itemHeight + spacing);
+    const done = ach.check();
+    const claimed = achievementState.claimed.includes(ach.id);
+    
+    // 卡片背景
+    ctx.fillStyle = done ? 'rgba(76,175,80,0.2)' : 'rgba(255,255,255,0.5)';
+    roundRect(15 * scale, iy * scale, (W - 30) * scale, itemHeight * scale, 10 * scale);
     ctx.fill();
     
-    ctx.font = `${40 * scale}px sans-serif`;
-    ctx.fillText(a.emoji, 100 * scale, (y + 40) * scale);
+    // 边框
+    ctx.strokeStyle = done ? 'rgba(76,175,80,0.5)' : 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = 1 * scale;
+    roundRect(15 * scale, iy * scale, (W - 30) * scale, itemHeight * scale, 10 * scale);
+    ctx.stroke();
     
-    ctx.fillStyle = '#333';
-    ctx.font = `bold ${22 * scale}px sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText(a.name, 150 * scale, (y + 35) * scale);
-    ctx.font = `${16 * scale}px sans-serif`;
-    ctx.fillText(a.desc, 150 * scale, (y + 60) * scale);
-    
-    if (a.done) {
-      ctx.fillStyle = '#4CAF50';
-      ctx.font = `${24 * scale}px sans-serif`;
-      ctx.textAlign = 'right';
-      ctx.fillText('✓', (GameConfig.WIDTH - 70) * scale, (y + 45) * scale);
-    }
+    // Emoji
+    ctx.font = `${32 * scale}px sans-serif`;
     ctx.textAlign = 'center';
+    ctx.fillStyle = done ? '#333' : '#999';
+    ctx.fillText(ach.emoji, 45 * scale, (iy + 38) * scale);
+    
+    // 名称
+    ctx.fillStyle = done ? '#333' : '#666';
+    ctx.font = `bold ${14 * scale}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(ach.name, 75 * scale, (iy + 28) * scale);
+    
+    // 描述
+    ctx.font = `${11 * scale}px sans-serif`;
+    ctx.fillStyle = '#888';
+    ctx.fillText(ach.desc, 75 * scale, (iy + 48) * scale);
+    
+    // 奖励
+    ctx.font = `${11 * scale}px sans-serif`;
+    ctx.fillStyle = '#f5a623';
+    const rewardText = ach.reward.diamond ? `💎 ${ach.reward.diamond}` : `💰 ${ach.reward.coin}`;
+    ctx.fillText(rewardText, 75 * scale, (iy + 65) * scale);
+    
+    // 领取按钮
+    const btnX = W - 80;
+    ctx.textAlign = 'center';
+    if (claimed) {
+      ctx.fillStyle = '#aaa';
+      roundRect(btnX * scale, (iy + 20) * scale, 55 * scale, 35 * scale, 8 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${11 * scale}px sans-serif`;
+      ctx.fillText('已领取', (btnX + 27) * scale, (iy + 38) * scale);
+    } else if (done) {
+      ctx.fillStyle = '#4CAF50';
+      roundRect(btnX * scale, (iy + 20) * scale, 55 * scale, 35 * scale, 8 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${11 * scale}px sans-serif`;
+      ctx.fillText('领取', (btnX + 27) * scale, (iy + 38) * scale);
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      roundRect(btnX * scale, (iy + 20) * scale, 55 * scale, 35 * scale, 8 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#999';
+      ctx.font = `bold ${11 * scale}px sans-serif`;
+      ctx.fillText('未达成', (btnX + 27) * scale, (iy + 38) * scale);
+    }
   });
   
-  drawBackButton();
+  // 返回按钮
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const bottomY = H - Math.max(safeBottom, 15) - 45;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('← 返回', 55 * scale, (bottomY + 18) * scale);
 }
 
 // ===================
