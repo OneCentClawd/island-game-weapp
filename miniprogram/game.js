@@ -3376,6 +3376,9 @@ function renderIslandScene() {
   ctx.fillText('☁️', ((cloudOffset * W + 200) % (W + 100) - 50) * scale, 200 * scale);
   ctx.globalAlpha = 1;
   
+  // 确保透明度重置
+  ctx.globalAlpha = 1;
+  
   // 沙滩
   ctx.fillStyle = '#F4A460';
   ctx.beginPath();
@@ -3393,6 +3396,9 @@ function renderIslandScene() {
   ctx.beginPath();
   ctx.ellipse(centerX * scale, (centerY - 20) * scale, 140 * scale, 100 * scale, 0, 0, Math.PI * 2);
   ctx.fill();
+  
+  // 确保后续绘制不受透明度影响
+  ctx.globalAlpha = 1;
   
   // 建筑
   for (const b of islandState.buildings) {
