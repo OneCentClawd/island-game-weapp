@@ -3411,6 +3411,9 @@ function renderIslandScene() {
     ctx.ellipse(bx * scale, (by + 25) * scale, 25 * scale, 10 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
     
+    // 绘制emoji - 确保不透明
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#000';
     ctx.font = `${50 * scale}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -3418,9 +3421,11 @@ function renderIslandScene() {
   }
   
   // 装饰物
+  ctx.globalAlpha = 1;
   for (const d of islandState.decorations) {
     const dx = centerX + (d.x - 0.5) * 300;
     const dy = centerY + (d.y - 0.5) * 250;
+    ctx.fillStyle = '#000';
     ctx.font = `${35 * scale}px sans-serif`;
     ctx.fillText(d.emoji, dx * scale, dy * scale);
   }
@@ -3459,6 +3464,10 @@ function renderIslandScene() {
   ctx.ellipse(puppyX * scale, (puppyY + 25) * scale, 28 * scale, 12 * scale, 0, 0, Math.PI * 2);
   ctx.fill();
   
+  // 确保小狗不透明
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#000';
+  
   // 小狗本体 - 呼吸动画
   const breathe = Math.sin(puppy.animTimer * 3) * 0.05;
   let puppySize = 50;
@@ -3475,6 +3484,7 @@ function renderIslandScene() {
   // 走路时左右摇摆
   if (puppy.state === 'walking') {
     ctx.save();
+    ctx.globalAlpha = 1;
     ctx.translate(puppyX * scale, puppyY * scale);
     ctx.rotate(Math.sin(puppy.animTimer * 15) * 0.1);
     ctx.fillText(puppyEmoji, 0, 0);
@@ -3484,6 +3494,7 @@ function renderIslandScene() {
   }
   
   // 小狗配饰
+  ctx.globalAlpha = 1;
   if (puppy.accessory) {
     const acc = PUPPY_ACCESSORIES.find(a => a.id === puppy.accessory);
     if (acc && acc.pos) {
