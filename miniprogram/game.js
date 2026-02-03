@@ -161,28 +161,45 @@ const MATCH3_COLORS = {
 const CloudService = {
   userInfo: null,
   
-  // 获取用户信息（需要用户授权）
-  async getUserInfo() {
+  // 获取用户信息（从缓存或存档）
+  getUserInfo() {
     if (this.userInfo) return this.userInfo;
     
+    // 从本地存档读取
+    try {
+      const saved = wx.getStorageSync('user_profile');
+      if (saved) {
+        this.userInfo = JSON.parse(saved);
+        return this.userInfo;
+      }
+    } catch (e) {}
+    
+    return { nickname: '匿名玩家', avatar: '' };
+  },
+  
+  // 请求用户授权（必须由用户点击触发）
+  async requestUserProfile() {
     try {
       const res = await wx.getUserProfile({
-        desc: '用于排行榜显示'
+        desc: '用于排行榜显示昵称'
       });
       this.userInfo = {
         nickname: res.userInfo.nickName,
         avatar: res.userInfo.avatarUrl
       };
+      // 保存到本地
+      wx.setStorageSync('user_profile', JSON.stringify(this.userInfo));
       return this.userInfo;
     } catch (e) {
-      return { nickname: '匿名玩家', avatar: '' };
+      console.log('用户拒绝授权');
+      return null;
     }
   },
   
   // 提交分数到排行榜
   async submitScore(type, score, level) {
     try {
-      const user = await this.getUserInfo();
+      const user = this.getUserInfo();
       const res = await wx.cloud.callFunction({
         name: 'leaderboard',
         data: {
@@ -4958,6 +4975,21 @@ function handleLeaderboardTouch(x, y) {
     return;
   }
   
+  // 授权按钮 - 右上角
+  const userInfo = CloudService.getUserInfo();
+  if (userInfo.nickname === '匿名玩家') {
+    if (x >= W - 90 && x <= W - 15 && y >= capsuleBottom - 18 && y <= capsuleBottom + 14) {
+      CloudService.requestUserProfile().then((info) => {
+        if (info) {
+          showInfo(`✅ 授权成功！欢迎 ${info.nickname}`);
+          // 重新提交分数更新昵称
+          syncAllScores().then(() => loadLeaderboard(leaderboardState.tab));
+        }
+      });
+      return;
+    }
+  }
+  
   // Tab切换
   const tabY = capsuleBottom + 50;
   const tabWidth = (W - 40) / 3;
@@ -5006,6 +5038,24 @@ function renderLeaderboardScene() {
   ctx.font = `bold ${22 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillText('🏆 排行榜', (W / 2) * scale, capsuleBottom * scale);
+  
+  // 授权按钮（如果是匿名用户）
+  const userInfo = CloudService.getUserInfo();
+  if (userInfo.nickname === '匿名玩家') {
+    ctx.fillStyle = '#4CAF50';
+    roundRect((W - 90) * scale, (capsuleBottom - 18) * scale, 75 * scale, 28 * scale, 14 * scale);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${11 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('授权昵称', (W - 52) * scale, (capsuleBottom - 3) * scale);
+  } else {
+    // 显示当前昵称
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = `${11 * scale}px sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.fillText(userInfo.nickname, (W - 15) * scale, (capsuleBottom - 3) * scale);
+  }
   
   // Tab栏
   const tabY = capsuleBottom + 50;
