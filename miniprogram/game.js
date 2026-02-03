@@ -3322,7 +3322,7 @@ function feedPuppy() {
     SaveManager.addResources({ coin: -10 });
     islandState.puppy.hunger = Math.min(100, islandState.puppy.hunger + 30);
     islandState.puppy.mood = Math.min(100, islandState.puppy.mood + 10);
-    islandState.puppy.love += 1;
+    islandState.puppy.love += 0.3;  // 降低：1 → 0.3
     islandState.puppy.exp += 5;
     islandState.puppy.lastFed = Date.now();
     islandState.puppy.state = 'eating';
@@ -3361,7 +3361,7 @@ function createFeedAnimation() {
 function petPuppy() {
   const puppy = islandState.puppy;
   puppy.mood = Math.min(100, puppy.mood + 5);
-  puppy.love += 0.5;
+  puppy.love += 0.1;  // 降低：0.5 → 0.1
   puppy.exp += 2;
   puppy.lastPet = Date.now();
   puppy.state = 'happy';
@@ -3393,7 +3393,7 @@ function playWithPuppy() {
   
   puppy.mood = Math.min(100, puppy.mood + 15);
   puppy.hunger = Math.max(0, puppy.hunger - 10);
-  puppy.love += 2;
+  puppy.love += 0.5;  // 降低：2 → 0.5
   puppy.exp += 10;
   puppy.state = 'playing';
   
