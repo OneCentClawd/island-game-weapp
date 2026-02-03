@@ -1982,6 +1982,23 @@ function handleRainbowSwap(tile1, tile2, t1r, t1c, t2r, t2c) {
 
 // 旧的swapTiles逻辑移除，用动画版本替代
 
+// 更新方块掉落动画
+function updateDropAnimation(dt) {
+  const dropSpeed = 600; // 像素/秒
+  for (let row = 0; row < MATCH3_GRID.rows; row++) {
+    for (let col = 0; col < MATCH3_GRID.cols; col++) {
+      const tile = match3State.board[row][col];
+      if (tile && tile.dropOffset && tile.dropOffset < 0) {
+        tile.dropOffset = Math.min(0, tile.dropOffset + dropSpeed * dt);
+        if (tile.dropOffset >= 0) {
+          tile.dropOffset = 0;
+          delete tile.isNew;
+        }
+      }
+    }
+  }
+}
+
 function findMatches() {
   const matches = [];
   const checked = new Set();
@@ -2235,8 +2252,10 @@ function dropTiles() {
             }
           }
           if (canDrop) {
+            const dropDistance = emptyRow - row;
             match3State.board[emptyRow][col] = tile;
             tile.row = emptyRow;
+            tile.dropOffset = -dropDistance * MATCH3_GRID.tileSize; // 从上方开始动画
             match3State.board[row][col] = null;
           }
         }
@@ -2248,13 +2267,29 @@ function dropTiles() {
 
 function fillBoard() {
   for (let col = 0; col < MATCH3_GRID.cols; col++) {
+    let emptyCount = 0;
+    // 先数空位
+    for (let row = 0; row < MATCH3_GRID.rows; row++) {
+      if (!match3State.board[row][col]) emptyCount++;
+    }
+    
+    let spawnIndex = 0;
     for (let row = 0; row < MATCH3_GRID.rows; row++) {
       const tile = match3State.board[row][col];
       // 跳过石头和已有方块
       if (tile) continue;
       
       const type = MATCH3_ELEMENTS[Math.floor(Math.random() * MATCH3_ELEMENTS.length)];
-      match3State.board[row][col] = { type, row, col };
+      // 新方块从屏幕外掉落
+      const dropDistance = row + 1 + (emptyCount - spawnIndex);
+      match3State.board[row][col] = { 
+        type, 
+        row, 
+        col,
+        dropOffset: -dropDistance * MATCH3_GRID.tileSize,
+        isNew: true
+      };
+      spawnIndex++;
     }
   }
 }
@@ -2434,6 +2469,11 @@ function renderMatch3Scene() {
           const dy = (anim.t1r - anim.t2r) * tileSize * progress;
           pos = { x: pos.x + dx, y: pos.y + dy };
         }
+      }
+      
+      // 掉落动画偏移
+      if (tile.dropOffset && tile.dropOffset < 0) {
+        pos = { x: pos.x, y: pos.y + tile.dropOffset };
       }
       
       // 选中高亮
@@ -4718,6 +4758,7 @@ function updateAnimations(dt) {
   // 更新消消乐交换动画
   if (currentScene === 'Match3') {
     updateSwapAnimation(dt);
+    updateDropAnimation(dt);
   }
   
   // 更新物品缩放动画
