@@ -180,7 +180,7 @@ const SaveManager = {
       maxEnergy: 10000,
       lastEnergyUpdate: Date.now(),
       currentLevel: 1,
-      highestLevel: 1,
+      highestLevel: 5,  // 默认解锁前5关
       levelStars: {},
       mergeItems: [],
       settings: { soundEnabled: true, musicEnabled: true },
