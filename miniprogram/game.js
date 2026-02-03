@@ -1153,10 +1153,11 @@ function handleMergeTouchStart(x, y) {
   const cellSize = MERGE_GRID.cellSize;
   const cardSize = cellSize - 12;
   
-  // 返回按钮检测
-  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
-  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
-  if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
+  // 返回按钮检测 - 左上角
+  let capsuleBottom = 80;
+  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
+  const btnY = capsuleBottom - 20;
+  if (x >= 15 && x <= 85 && y >= btnY && y <= btnY + 34) {
     switchScene('MainMenu');
     return;
   }
@@ -5003,18 +5004,25 @@ function drawButton(x, y, w, h, text) {
 }
 
 function drawBackButton() {
-  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
-  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+  let capsuleBottom = 80;
+  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
   
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  const btnX = 15;
+  const btnY = capsuleBottom - 20;
+  const btnW = 70;
+  const btnH = 34;
+  
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  roundRect((btnX + 2) * scale, (btnY + 2) * scale, btnW * scale, btnH * scale, 17 * scale);
   ctx.fill();
-  
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  roundRect(btnX * scale, btnY * scale, btnW * scale, btnH * scale, 17 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#5d4e37';
   ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('← 返回', 55 * scale, (bottomY + 18) * scale);
+  ctx.fillText('返回', (btnX + btnW / 2) * scale, (btnY + btnH / 2) * scale);
 }
 
 function drawBottomInfo() {
