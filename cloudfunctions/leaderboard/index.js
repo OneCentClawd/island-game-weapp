@@ -16,10 +16,34 @@ exports.main = async (event, context) => {
       return await getRankings(data);
     case 'getMyRank':
       return await getMyRank(openid, data);
+    case 'updateProfile':
+      return await updateProfile(openid, data);
     default:
       return { success: false, error: 'Unknown action' };
   }
 };
+
+// 更新用户昵称（所有排行记录）
+async function updateProfile(openid, data) {
+  const { nickname, avatar } = data;
+  
+  try {
+    const collection = db.collection('leaderboard');
+    
+    // 更新该用户的所有记录
+    await collection.where({ openid }).update({
+      data: {
+        nickname: nickname || '匿名玩家',
+        avatar: avatar || '',
+        updateTime: db.serverDate()
+      }
+    });
+    
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
 
 // 提交分数
 async function submitScore(openid, data) {

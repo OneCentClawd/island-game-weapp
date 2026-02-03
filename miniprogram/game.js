@@ -189,10 +189,30 @@ const CloudService = {
       };
       // 保存到本地
       wx.setStorageSync('user_profile', JSON.stringify(this.userInfo));
+      
+      // 立即更新排行榜里的昵称
+      await this.updateLeaderboardProfile();
+      
       return this.userInfo;
     } catch (e) {
       console.log('用户拒绝授权');
       return null;
+    }
+  },
+  
+  // 更新排行榜里的昵称
+  async updateLeaderboardProfile() {
+    try {
+      await wx.cloud.callFunction({
+        name: 'leaderboard',
+        data: {
+          action: 'updateProfile',
+          data: this.userInfo
+        }
+      });
+      console.log('排行榜昵称已更新');
+    } catch (e) {
+      console.error('更新昵称失败:', e);
     }
   },
   
