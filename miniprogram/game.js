@@ -1530,7 +1530,7 @@ function drawMergeBackground() {
   ctx.fillText('☁️', 550 * scale, 160 * scale);
   ctx.globalAlpha = 0.8;
   ctx.font = `${50 * scale}px sans-serif`;
-  ctx.fillText('🌞', 650 * scale, 160 * scale);
+  ctx.fillText('🔆', 650 * scale, 160 * scale);
   
   // 草地装饰 - 左右两侧
   ctx.globalAlpha = 0.7;
@@ -3720,7 +3720,7 @@ function renderIslandScene() {
     ctx.fillText('🌅', (W - 80) * scale, 140 * scale);
   } else {
     ctx.font = `${50 * scale}px sans-serif`;
-    ctx.fillText('🌞', (W - 60) * scale, 120 * scale);
+    ctx.fillText('🔆', (W - 60) * scale, 120 * scale);
   }
   
   // 云朵
@@ -3885,7 +3885,7 @@ function renderIslandScene() {
   ctx.fillStyle = '#fff';
   ctx.font = `bold ${24 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  const timeEmoji = islandState.timeOfDay === 'night' ? '🌙' : islandState.timeOfDay === 'evening' ? '🌅' : '🌞';
+  const timeEmoji = islandState.timeOfDay === 'night' ? '🌙' : islandState.timeOfDay === 'evening' ? '🌅' : '🔆';
   ctx.fillText(`🏝️ 我的小岛 ${timeEmoji}`, centerX * scale, capsuleBottom * scale);
   
   // 小狗状态面板
