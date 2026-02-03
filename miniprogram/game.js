@@ -4948,14 +4948,23 @@ function renderLeaderboardScene() {
   ctx.textAlign = 'center';
   ctx.fillText('🔄 刷新', (W - 55) * scale, (bottomY + 22) * scale);
   
-  // 返回按钮 - 左上角标题旁边
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  roundRect(15 * scale, (capsuleBottom - 18) * scale, 60 * scale, 32 * scale, 8 * scale);
+  // 返回按钮 - 左上角胶囊样式
+  const btnY = capsuleBottom - 18;
+  // 背景
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  roundRect(15 * scale, btnY * scale, 64 * scale, 32 * scale, 16 * scale);
   ctx.fill();
+  // 边框
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 1 * scale;
+  roundRect(15 * scale, btnY * scale, 64 * scale, 32 * scale, 16 * scale);
+  ctx.stroke();
+  // 文字
   ctx.fillStyle = '#fff';
   ctx.font = `bold ${13 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('← 返回', 45 * scale, (capsuleBottom) * scale);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('‹ 返回', 47 * scale, (btnY + 16) * scale);
 }
 
 // ===================
