@@ -1186,55 +1186,104 @@ function handleLevelSelectTouch(x, y) {
 }
 
 function renderLevelSelectScene() {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  
   // 背景
-  const gradient = ctx.createLinearGradient(0, 0, 0, GameConfig.HEIGHT * scale);
+  const gradient = ctx.createLinearGradient(0, 0, 0, H * scale);
   gradient.addColorStop(0, '#667eea');
   gradient.addColorStop(1, '#764ba2');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, GameConfig.WIDTH * scale, GameConfig.HEIGHT * scale);
+  ctx.fillRect(0, 0, W * scale, H * scale);
+  
+  // 安全区域
+  let capsuleBottom = 80;
+  try {
+    const capsule = wx.getMenuButtonBoundingClientRect();
+    capsuleBottom = capsule.bottom + 15;
+  } catch (e) {}
   
   // 标题
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${36 * scale}px sans-serif`;
+  ctx.font = `bold ${28 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('选择关卡', GameConfig.WIDTH / 2 * scale, 100 * scale);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🎮 选择关卡', W / 2 * scale, capsuleBottom * scale);
+  
+  // 当前进度
+  ctx.font = `${14 * scale}px sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.fillText(`已解锁 ${SaveManager.data.highestLevel}/20 关`, W / 2 * scale, (capsuleBottom + 30) * scale);
   
   // 关卡按钮
-  const startY = 200;
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const startY = capsuleBottom + 70;
+  const endY = H - safeBottom - 70;
   const cols = 5;
-  const spacing = 120;
-  const startX = (GameConfig.WIDTH - (cols - 1) * spacing) / 2;
+  const rows = 4;
+  const spacingX = Math.min(65, (W - 40) / cols);
+  const spacingY = Math.min(80, (endY - startY) / rows);
+  const startX = (W - (cols - 1) * spacingX) / 2;
   
   for (let i = 0; i < 20; i++) {
     const level = i + 1;
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const x = startX + col * spacing;
-    const y = startY + row * spacing;
+    const x = startX + col * spacingX;
+    const y = startY + row * spacingY;
     
     const unlocked = level <= SaveManager.data.highestLevel;
     const stars = SaveManager.data.levelStars[level] || 0;
     
-    // 按钮背景
-    ctx.fillStyle = unlocked ? '#4ecdc4' : '#666';
+    // 按钮阴影
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.arc(x * scale, y * scale, 40 * scale, 0, Math.PI * 2);
+    ctx.arc((x + 2) * scale, (y + 2) * scale, 28 * scale, 0, Math.PI * 2);
     ctx.fill();
+    
+    // 按钮背景
+    if (unlocked) {
+      const btnGradient = ctx.createRadialGradient(x * scale, y * scale, 0, x * scale, y * scale, 28 * scale);
+      btnGradient.addColorStop(0, '#5ee7df');
+      btnGradient.addColorStop(1, '#4ecdc4');
+      ctx.fillStyle = btnGradient;
+    } else {
+      ctx.fillStyle = '#555';
+    }
+    ctx.beginPath();
+    ctx.arc(x * scale, y * scale, 28 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 边框
+    ctx.strokeStyle = unlocked ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 2 * scale;
+    ctx.beginPath();
+    ctx.arc(x * scale, y * scale, 28 * scale, 0, Math.PI * 2);
+    ctx.stroke();
     
     // 关卡号或锁
     ctx.fillStyle = '#fff';
-    ctx.font = `bold ${24 * scale}px sans-serif`;
+    ctx.font = `bold ${20 * scale}px sans-serif`;
     ctx.textBaseline = 'middle';
     ctx.fillText(unlocked ? level.toString() : '🔒', x * scale, y * scale);
     
     // 星星
-    if (unlocked && stars > 0) {
-      ctx.font = `${14 * scale}px sans-serif`;
-      ctx.fillText('⭐'.repeat(stars), x * scale, (y + 35) * scale);
+    if (unlocked) {
+      ctx.font = `${12 * scale}px sans-serif`;
+      const starStr = (stars >= 1 ? '⭐' : '☆') + (stars >= 2 ? '⭐' : '☆') + (stars >= 3 ? '⭐' : '☆');
+      ctx.fillText(starStr, x * scale, (y + 32) * scale);
     }
   }
   
-  drawBackButton();
+  // 返回按钮
+  const bottomY = H - Math.max(safeBottom, 15) - 45;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('← 返回', 55 * scale, (bottomY + 18) * scale);
 }
 
 // ===================
