@@ -855,17 +855,17 @@ function drawMergeItems() {
 // 消消乐关卡配置
 // ===================
 const MATCH3_LEVELS = [
-  // 1-5关：入门，无障碍
-  { level: 1, moves: 25, target: { score: 800 }, stars: [800, 1200, 1600], reward: { coin: 50 } },
-  { level: 2, moves: 25, target: { score: 1000 }, stars: [1000, 1500, 2000], reward: { coin: 60 } },
-  { level: 3, moves: 22, target: { score: 1200 }, stars: [1200, 1800, 2400], reward: { coin: 70 } },
-  { level: 4, moves: 22, target: { score: 1400 }, stars: [1400, 2100, 2800], reward: { coin: 80 } },
-  { level: 5, moves: 20, target: { score: 1600 }, stars: [1600, 2400, 3200], reward: { coin: 100, diamond: 1 } },
-  // 6-10关：引入冰块
-  { level: 6, moves: 22, target: { score: 1800, ice: 5 }, stars: [1800, 2700, 3600], reward: { coin: 100 }, obstacles: { ice: [[0,0],[0,7],[7,0],[7,7],[3,3]] } },
-  { level: 7, moves: 22, target: { score: 2000, ice: 8 }, stars: [2000, 3000, 4000], reward: { coin: 110 }, obstacles: { ice: [[1,1],[1,6],[6,1],[6,6],[2,3],[2,4],[5,3],[5,4]] } },
-  { level: 8, moves: 20, target: { score: 2200, ice: 10 }, stars: [2200, 3300, 4400], reward: { coin: 120 }, obstacles: { ice: [[0,2],[0,5],[2,0],[2,7],[5,0],[5,7],[7,2],[7,5],[3,3],[4,4]] } },
-  { level: 9, moves: 20, target: { score: 2400, ice: 12 }, stars: [2400, 3600, 4800], reward: { coin: 130 }, obstacles: { ice: [[1,2],[1,3],[1,4],[1,5],[6,2],[6,3],[6,4],[6,5],[3,1],[3,6],[4,1],[4,6]] } },
+  // 1-5关：入门，无障碍（超简单）
+  { level: 1, moves: 30, target: { score: 300 }, stars: [300, 500, 800], reward: { coin: 50 } },
+  { level: 2, moves: 28, target: { score: 500 }, stars: [500, 800, 1200], reward: { coin: 60 } },
+  { level: 3, moves: 26, target: { score: 700 }, stars: [700, 1100, 1500], reward: { coin: 70 } },
+  { level: 4, moves: 25, target: { score: 900 }, stars: [900, 1400, 1900], reward: { coin: 80 } },
+  { level: 5, moves: 25, target: { score: 1200 }, stars: [1200, 1800, 2500], reward: { coin: 100, diamond: 1 } },
+  // 6-10关：引入冰块（简单）
+  { level: 6, moves: 25, target: { score: 1400, ice: 3 }, stars: [1400, 2100, 2800], reward: { coin: 100 }, obstacles: { ice: [[0,0],[7,7],[3,3]] } },
+  { level: 7, moves: 24, target: { score: 1600, ice: 5 }, stars: [1600, 2400, 3200], reward: { coin: 110 }, obstacles: { ice: [[0,0],[0,7],[7,0],[7,7],[3,3]] } },
+  { level: 8, moves: 24, target: { score: 1800, ice: 6 }, stars: [1800, 2700, 3600], reward: { coin: 120 }, obstacles: { ice: [[1,1],[1,6],[6,1],[6,6],[3,3],[4,4]] } },
+  { level: 9, moves: 23, target: { score: 2000, ice: 8 }, stars: [2000, 3000, 4000], reward: { coin: 130 }, obstacles: { ice: [[0,0],[0,7],[7,0],[7,7],[2,3],[2,4],[5,3],[5,4]] } },
   { level: 10, moves: 20, target: { score: 2600, ice: 10 }, stars: [2600, 3900, 5200], reward: { coin: 150, diamond: 2 }, obstacles: { ice: [[0,3],[0,4],[3,0],[3,7],[4,0],[4,7],[7,3],[7,4],[3,3],[4,4]] } },
   // 11-15关：引入石头
   { level: 11, moves: 20, target: { score: 2800, stone: 4 }, stars: [2800, 4200, 5600], reward: { coin: 150 }, obstacles: { stone: [[3,3],[3,4],[4,3],[4,4]] } },
