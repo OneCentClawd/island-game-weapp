@@ -283,7 +283,7 @@ function renderMainMenu() {
   ctx.fillRect(0, 0, W * scale, H * scale);
   
   // 顶部资源栏 - 放在安全区域下方
-  const resY = safeTop + 15;
+  const resY = safeTop + 25;
   ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'left';
   ctx.fillStyle = '#fff';
