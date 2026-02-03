@@ -1199,12 +1199,9 @@ function handleMergeTouchEnd() {
   dragState.offsetY = 0;
 }
 
-// 兼容旧的点击处理（保留双击收集等）
+// 兼容旧的点击处理
 function handleMergeTouch(x, y) {
   handleMergeTouchStart(x, y);
-  }
-  
-  mergeState.selectedItem = null;
 }
 
 function renderMergeScene() {
