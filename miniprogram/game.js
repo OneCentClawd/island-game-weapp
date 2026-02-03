@@ -2821,12 +2821,12 @@ function handleLevelSelectTouch(x, y) {
   
   const W = GameConfig.WIDTH;
   const startY = capsuleBottom + 80;
-  const cols = 4;
+  const cols = 5;
   const totalLevels = MATCH3_LEVELS.length;
-  const btnRadius = 24;
-  const padding = 35;
+  const btnRadius = 22;
+  const padding = 30;
   const spacingX = (W - padding * 2) / (cols - 1);
-  const spacingY = 70;
+  const spacingY = 65;
   const startX = padding;
   const scrollY = levelSelectState.scrollY || 0;
   
@@ -2883,12 +2883,12 @@ function renderLevelSelectScene() {
   
   // 关卡按钮（支持滚动）
   const startY = capsuleBottom + 80;
-  const cols = 4;
+  const cols = 5;
   const totalLevels = MATCH3_LEVELS.length;
-  const btnRadius = 24;
-  const padding = 35;  // 固定左右边距
+  const btnRadius = 22;
+  const padding = 30;
   const spacingX = (W - padding * 2) / (cols - 1);
-  const spacingY = 70;
+  const spacingY = 65;
   const startX = padding;
   const scrollY = levelSelectState.scrollY || 0;
   
