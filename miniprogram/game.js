@@ -1856,9 +1856,20 @@ function swapTiles(tile1, tile2) {
     t1r: t1r, t1c: t1c,
     t2r: t2r, t2c: t2c,
     progress: 0,
-    reverse: false,
-    phase: 'swapping' // swapping -> checking -> reversing -> done
+    phase: 'swapping' // swapping -> reversing -> done
   };
+}
+
+// 缓动函数 - 平滑加速减速
+function easeInOutQuad(t) {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+// 弹性缓动 - 用于回弹效果
+function easeOutBack(t) {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
 }
 
 // 更新交换动画
@@ -1866,7 +1877,8 @@ function updateSwapAnimation(dt) {
   const anim = match3State.swapAnim;
   if (!anim) return;
   
-  anim.progress += dt * 4; // 动画速度
+  // 动画速度：0.15秒完成交换
+  anim.progress += dt / 0.15;
   
   if (anim.progress >= 1) {
     anim.progress = 1;
@@ -2452,10 +2464,15 @@ function renderMatch3Scene() {
       let pos = getMatch3TileCenter(col, row);
       const size = MATCH3_GRID.tileSize - 8;
       
-      // 交换动画偏移
+      // 交换动画偏移 - 使用缓动函数
       const anim = match3State.swapAnim;
       if (anim) {
-        const progress = anim.phase === 'reversing' ? (1 - anim.progress) : anim.progress;
+        const rawProgress = anim.phase === 'reversing' ? (1 - anim.progress) : anim.progress;
+        // 使用缓动函数让动画更流畅
+        const easedProgress = anim.phase === 'reversing' 
+          ? easeOutBack(anim.progress) 
+          : easeInOutQuad(anim.progress);
+        const progress = anim.phase === 'reversing' ? (1 - easedProgress) : easedProgress;
         const tileSize = MATCH3_GRID.tileSize;
         
         if (anim.tile1 === tile) {
