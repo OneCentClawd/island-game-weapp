@@ -4268,7 +4268,9 @@ function renderShopScene() {
 // ===================
 // 成就场景 (简化)
 // ===================
-function initAchievementScene() {}
+function initAchievementScene() {
+  achievementState.scrollY = 0;
+}
 
 // ===================
 // 成就系统
@@ -4290,6 +4292,7 @@ const ACHIEVEMENTS_CONFIG = [
 
 let achievementState = {
   claimed: [], // 已领取奖励的成就
+  scrollY: 0,  // 滚动偏移
 };
 
 function initAchievements() {
@@ -4326,18 +4329,22 @@ function handleAchievementTouch(x, y) {
     return;
   }
   
-  // 成就领取按钮
+  // 成就领取按钮（考虑滚动偏移）
   const startY = capsuleBottom + 50;
   const itemHeight = 75;
   const spacing = 8;
+  const scrollY = achievementState.scrollY || 0;
   
   for (let i = 0; i < ACHIEVEMENTS_CONFIG.length; i++) {
     const ach = ACHIEVEMENTS_CONFIG[i];
-    const iy = startY + i * (itemHeight + spacing);
+    const iy = startY + i * (itemHeight + spacing) - scrollY;
+    
+    // 跳过不可见的
+    if (iy + itemHeight < capsuleBottom + 40 || iy > H) continue;
     
     // 检测领取按钮
-    const btnX = W - 80;
-    if (x >= btnX && x <= btnX + 60 && y >= iy + 20 && y <= iy + 55) {
+    const achBtnX = W - 80;
+    if (x >= achBtnX && x <= achBtnX + 60 && y >= iy + 20 && y <= iy + 55) {
       const done = ach.check();
       const claimed = achievementState.claimed.includes(ach.id);
       
@@ -4383,15 +4390,26 @@ function renderAchievementScene() {
   ctx.fillStyle = '#666';
   ctx.fillText(`已完成 ${completed}/${ACHIEVEMENTS_CONFIG.length}`, W / 2 * scale, (capsuleBottom + 25) * scale);
   
-  // 成就列表
+  // 成就列表（支持滚动）
   const startY = capsuleBottom + 50;
   const itemHeight = 75;
   const spacing = 8;
+  const scrollY = achievementState.scrollY || 0;
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  
+  // 计算最大滚动距离
+  const totalHeight = ACHIEVEMENTS_CONFIG.length * (itemHeight + spacing);
+  const visibleHeight = H - startY - safeBottom - 20;
+  const maxScroll = Math.max(0, totalHeight - visibleHeight);
+  achievementState.maxScroll = maxScroll;
   
   ACHIEVEMENTS_CONFIG.forEach((ach, i) => {
-    const iy = startY + i * (itemHeight + spacing);
+    const iy = startY + i * (itemHeight + spacing) - scrollY;
     const done = ach.check();
     const claimed = achievementState.claimed.includes(ach.id);
+    
+    // 跳过不可见的项
+    if (iy + itemHeight < capsuleBottom + 40 || iy > H) return;
     
     // 卡片背景
     ctx.fillStyle = done ? 'rgba(76,175,80,0.2)' : 'rgba(255,255,255,0.5)';
@@ -4428,29 +4446,29 @@ function renderAchievementScene() {
     ctx.fillText(rewardText, 75 * scale, (iy + 65) * scale);
     
     // 领取按钮
-    const btnX = W - 80;
+    const achBtnX = W - 80;
     ctx.textAlign = 'center';
     if (claimed) {
       ctx.fillStyle = '#aaa';
-      roundRect(btnX * scale, (iy + 20) * scale, 55 * scale, 35 * scale, 8 * scale);
+      roundRect(achBtnX * scale, (iy + 20) * scale, 55 * scale, 35 * scale, 8 * scale);
       ctx.fill();
       ctx.fillStyle = '#fff';
       ctx.font = `bold ${11 * scale}px sans-serif`;
-      ctx.fillText('已领取', (btnX + 27) * scale, (iy + 38) * scale);
+      ctx.fillText('已领取', (achBtnX + 27) * scale, (iy + 38) * scale);
     } else if (done) {
       ctx.fillStyle = '#4CAF50';
-      roundRect(btnX * scale, (iy + 20) * scale, 55 * scale, 35 * scale, 8 * scale);
+      roundRect(achBtnX * scale, (iy + 20) * scale, 55 * scale, 35 * scale, 8 * scale);
       ctx.fill();
       ctx.fillStyle = '#fff';
       ctx.font = `bold ${11 * scale}px sans-serif`;
-      ctx.fillText('领取', (btnX + 27) * scale, (iy + 38) * scale);
+      ctx.fillText('领取', (achBtnX + 27) * scale, (iy + 38) * scale);
     } else {
       ctx.fillStyle = 'rgba(0,0,0,0.15)';
-      roundRect(btnX * scale, (iy + 20) * scale, 55 * scale, 35 * scale, 8 * scale);
+      roundRect(achBtnX * scale, (iy + 20) * scale, 55 * scale, 35 * scale, 8 * scale);
       ctx.fill();
       ctx.fillStyle = '#999';
       ctx.font = `bold ${11 * scale}px sans-serif`;
-      ctx.fillText('未达成', (btnX + 27) * scale, (iy + 38) * scale);
+      ctx.fillText('未达成', (achBtnX + 27) * scale, (iy + 38) * scale);
     }
   });
   
@@ -5114,11 +5132,21 @@ let dragState = {
   originalY: 0,
 };
 
+// 滚动状态
+let touchStartY = 0;
+let scrollStartY = 0;
+
 wx.onTouchStart(function(e) {
   if (e.touches.length > 0) {
     const touch = e.touches[0];
     const x = touch.clientX / scale;
     const y = touch.clientY / scale;
+    
+    // 记录触摸起点（用于滚动）
+    touchStartY = y;
+    if (currentScene === 'Achievement') {
+      scrollStartY = achievementState.scrollY || 0;
+    }
     
     switch (currentScene) {
       case 'MainMenu': handleMainMenuTouch(x, y); break;
@@ -5139,6 +5167,13 @@ wx.onTouchMove(function(e) {
     const touch = e.touches[0];
     const x = touch.clientX / scale;
     const y = touch.clientY / scale;
+    
+    // 成就页滚动
+    if (currentScene === 'Achievement') {
+      const deltaY = touchStartY - y;
+      const newScroll = scrollStartY + deltaY;
+      achievementState.scrollY = Math.max(0, Math.min(newScroll, achievementState.maxScroll || 0));
+    }
     
     if (currentScene === 'Merge') {
       handleMergeTouchMove(x, y);
