@@ -3451,8 +3451,11 @@ function handleIslandTouch(x, y) {
     return;
   }
   
-  // 返回按钮
-  if (x >= 15 && x <= 95 && y >= bottomY + 10 && y <= bottomY + 46) {
+  // 返回按钮 - 左上角
+  let capsuleBottom = 80;
+  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
+  const backBtnY = capsuleBottom - 20;
+  if (x >= 15 && x <= 85 && y >= backBtnY && y <= backBtnY + 34) {
     savePuppyState();
     switchScene('MainMenu');
     return;
@@ -3875,7 +3878,7 @@ function renderIslandScene() {
   ctx.fillStyle = '#fff';
   ctx.fillText('🏗️ 装饰', (30 + btnWidth * 2.5) * scale, (btnY + 20) * scale);
   
-  // 返回按钮（普通模式）或取消按钮（放置模式）
+  // 放置模式提示或左上角返回按钮
   if (islandState.placingItem) {
     // 放置模式提示
     ctx.fillStyle = 'rgba(255,193,7,0.95)';
@@ -3893,13 +3896,22 @@ function renderIslandScene() {
     ctx.fillStyle = '#fff';
     ctx.fillText('❌ 取消', (W - 50) * scale, (bottomY + 28) * scale);
   } else {
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    roundRect(15 * scale, (bottomY + 10) * scale, 80 * scale, 36 * scale, 10 * scale);
+    // 左上角返回按钮
+    const btnX = 15;
+    const backBtnY = capsuleBottom - 20;
+    const btnW = 70;
+    const btnH = 34;
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    roundRect((btnX + 2) * scale, (backBtnY + 2) * scale, btnW * scale, btnH * scale, 17 * scale);
     ctx.fill();
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    roundRect(btnX * scale, backBtnY * scale, btnW * scale, btnH * scale, 17 * scale);
+    ctx.fill();
+    ctx.fillStyle = '#1976d2';
     ctx.font = `bold ${14 * scale}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText('← 返回', 55 * scale, (bottomY + 28) * scale);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('返回', (btnX + btnW / 2) * scale, (backBtnY + btnH / 2) * scale);
   }
   
   // 绘制商店界面
