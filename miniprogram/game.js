@@ -1572,55 +1572,216 @@ function renderIslandScene() {
 // ===================
 function initShopScene() {}
 
-function handleShopTouch(x, y) {
-  const safeBottom = systemInfo.safeArea ? (GameConfig.HEIGHT - systemInfo.safeArea.bottom) : 20;
-  const bottomY = GameConfig.HEIGHT - Math.max(safeBottom, 15) - 45;
+// ===================
+// 商店系统
+// ===================
+const SHOP_ITEMS = [
+  { id: 'energy_50', emoji: '⚡', name: '体力 x50', desc: '恢复50点体力', cost: { diamond: 5 }, give: { energy: 50 } },
+  { id: 'energy_200', emoji: '⚡', name: '体力 x200', desc: '恢复200点体力', cost: { diamond: 15 }, give: { energy: 200 } },
+  { id: 'coin_500', emoji: '💰', name: '金币 x500', desc: '获得500金币', cost: { diamond: 10 }, give: { coin: 500 } },
+  { id: 'coin_2000', emoji: '💰', name: '金币 x2000', desc: '获得2000金币', cost: { diamond: 35 }, give: { coin: 2000 } },
+  { id: 'puppy_food', emoji: '🍖', name: '狗粮大礼包', desc: '喂食10次的量', cost: { coin: 80 }, give: { puppyFood: 10 } },
+  { id: 'starter_pack', emoji: '🎁', name: '新手礼包', desc: '💎50 💰1000 ⚡100', cost: { real: 1 }, give: { diamond: 50, coin: 1000, energy: 100 }, once: true },
+];
+
+let shopState = {
+  purchasedOnce: [], // 已购买的一次性商品
+};
+
+function initShop() {
+  shopState.purchasedOnce = SaveManager.data.purchasedOnce || [];
+}
+
+function purchaseShopItem(index) {
+  const item = SHOP_ITEMS[index];
+  if (!item) return;
   
+  // 检查是否已购买一次性商品
+  if (item.once && shopState.purchasedOnce.includes(item.id)) {
+    showInfo('❌ 已购买过该商品');
+    return;
+  }
+  
+  // 检查是否是真实货币（暂不支持）
+  if (item.cost.real) {
+    showInfo('💳 付费功能开发中...');
+    return;
+  }
+  
+  // 检查资源是否足够
+  const res = SaveManager.getResources();
+  if (item.cost.diamond && res.diamond < item.cost.diamond) {
+    showInfo('💎 钻石不足');
+    return;
+  }
+  if (item.cost.coin && res.coin < item.cost.coin) {
+    showInfo('💰 金币不足');
+    return;
+  }
+  
+  // 扣除资源
+  if (item.cost.diamond) SaveManager.addResources({ diamond: -item.cost.diamond });
+  if (item.cost.coin) SaveManager.addResources({ coin: -item.cost.coin });
+  
+  // 发放奖励
+  if (item.give.energy) {
+    SaveManager.data.energy = Math.min(SaveManager.data.maxEnergy, SaveManager.data.energy + item.give.energy);
+  }
+  if (item.give.coin) SaveManager.addResources({ coin: item.give.coin });
+  if (item.give.diamond) SaveManager.addResources({ diamond: item.give.diamond });
+  if (item.give.puppyFood) {
+    // 狗粮直接加饱腹度
+    if (islandState && islandState.puppy) {
+      islandState.puppy.hunger = Math.min(100, islandState.puppy.hunger + item.give.puppyFood * 10);
+      islandState.puppy.love += item.give.puppyFood;
+      savePuppyState();
+    }
+  }
+  
+  // 记录一次性购买
+  if (item.once) {
+    shopState.purchasedOnce.push(item.id);
+    SaveManager.data.purchasedOnce = shopState.purchasedOnce;
+  }
+  
+  SaveManager.save();
+  showInfo(`✅ 购买成功！${item.name}`);
+}
+
+function handleShopTouch(x, y) {
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const bottomY = H - Math.max(safeBottom, 15) - 45;
+  
+  // 返回按钮
   if (x >= 15 && x <= 95 && y >= bottomY && y <= bottomY + 36) {
     switchScene('MainMenu');
     return;
   }
+  
+  // 商品购买按钮
+  let capsuleBottom = 80;
+  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
+  
+  const startY = capsuleBottom + 60;
+  const cols = 2;
+  const itemWidth = (W - 50) / cols;
+  const itemHeight = 100;
+  const spacing = 10;
+  
+  for (let i = 0; i < SHOP_ITEMS.length; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const ix = 20 + col * (itemWidth + spacing);
+    const iy = startY + row * (itemHeight + spacing);
+    
+    if (x >= ix && x <= ix + itemWidth && y >= iy && y <= iy + itemHeight) {
+      purchaseShopItem(i);
+      return;
+    }
+  }
 }
 
 function renderShopScene() {
-  const gradient = ctx.createLinearGradient(0, 0, 0, GameConfig.HEIGHT * scale);
+  const W = GameConfig.WIDTH;
+  const H = GameConfig.HEIGHT;
+  
+  initShop();
+  
+  // 背景
+  const gradient = ctx.createLinearGradient(0, 0, 0, H * scale);
   gradient.addColorStop(0, '#f093fb');
   gradient.addColorStop(1, '#f5576c');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, GameConfig.WIDTH * scale, GameConfig.HEIGHT * scale);
+  ctx.fillRect(0, 0, W * scale, H * scale);
   
+  // 安全区域
+  let capsuleBottom = 80;
+  try { const c = wx.getMenuButtonBoundingClientRect(); capsuleBottom = c.bottom + 15; } catch(e){}
+  
+  // 标题
   ctx.fillStyle = '#fff';
-  ctx.font = `bold ${36 * scale}px sans-serif`;
+  ctx.font = `bold ${26 * scale}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('🛒 商店', GameConfig.WIDTH / 2 * scale, 100 * scale);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🛒 商店', W / 2 * scale, capsuleBottom * scale);
   
-  // 商品
-  const items = [
-    { emoji: '⚡', name: '体力 x100', price: '💎 10' },
-    { emoji: '💰', name: '金币 x1000', price: '💎 50' },
-    { emoji: '💎', name: '钻石 x100', price: '¥6' },
-    { emoji: '🎁', name: '新手礼包', price: '¥1' },
-  ];
+  // 当前资源显示
+  const res = SaveManager.getResources();
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillText(`💎 ${res.diamond}    💰 ${res.coin}    ⚡ ${SaveManager.getEnergy()}`, W / 2 * scale, (capsuleBottom + 28) * scale);
   
-  items.forEach((item, i) => {
-    const y = 200 + i * 120;
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    roundRect(50 * scale, y * scale, (GameConfig.WIDTH - 100) * scale, 100 * scale, 15 * scale);
+  // 商品列表 (2列布局)
+  const startY = capsuleBottom + 60;
+  const cols = 2;
+  const itemWidth = (W - 50) / cols;
+  const itemHeight = 100;
+  const spacing = 10;
+  
+  SHOP_ITEMS.forEach((item, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const ix = 20 + col * (itemWidth + spacing);
+    const iy = startY + row * (itemHeight + spacing);
+    
+    const purchased = item.once && shopState.purchasedOnce.includes(item.id);
+    
+    // 卡片背景
+    ctx.fillStyle = purchased ? 'rgba(100,100,100,0.5)' : 'rgba(255,255,255,0.2)';
+    roundRect(ix * scale, iy * scale, itemWidth * scale, itemHeight * scale, 12 * scale);
     ctx.fill();
     
-    ctx.font = `${50 * scale}px sans-serif`;
-    ctx.fillText(item.emoji, 120 * scale, (y + 50) * scale);
+    // 边框
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1 * scale;
+    roundRect(ix * scale, iy * scale, itemWidth * scale, itemHeight * scale, 12 * scale);
+    ctx.stroke();
     
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${24 * scale}px sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText(item.name, 180 * scale, (y + 45) * scale);
-    ctx.font = `${20 * scale}px sans-serif`;
-    ctx.fillText(item.price, 180 * scale, (y + 75) * scale);
+    // Emoji
+    ctx.font = `${36 * scale}px sans-serif`;
     ctx.textAlign = 'center';
+    ctx.fillText(item.emoji, (ix + 35) * scale, (iy + 40) * scale);
+    
+    // 名称
+    ctx.fillStyle = purchased ? '#aaa' : '#fff';
+    ctx.font = `bold ${14 * scale}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(item.name, (ix + 65) * scale, (iy + 30) * scale);
+    
+    // 描述
+    ctx.font = `${11 * scale}px sans-serif`;
+    ctx.fillStyle = purchased ? '#888' : 'rgba(255,255,255,0.8)';
+    ctx.fillText(item.desc.substring(0, 12), (ix + 65) * scale, (iy + 50) * scale);
+    
+    // 价格/已购买
+    ctx.textAlign = 'center';
+    if (purchased) {
+      ctx.fillStyle = '#aaa';
+      ctx.font = `bold ${12 * scale}px sans-serif`;
+      ctx.fillText('已购买', (ix + itemWidth / 2) * scale, (iy + 80) * scale);
+    } else {
+      ctx.fillStyle = '#ffe66d';
+      ctx.font = `bold ${13 * scale}px sans-serif`;
+      let priceText = '';
+      if (item.cost.diamond) priceText = `💎 ${item.cost.diamond}`;
+      else if (item.cost.coin) priceText = `💰 ${item.cost.coin}`;
+      else if (item.cost.real) priceText = `¥${item.cost.real}`;
+      ctx.fillText(priceText, (ix + itemWidth / 2) * scale, (iy + 80) * scale);
+    }
   });
   
-  drawBackButton();
+  // 返回按钮
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const bottomY = H - Math.max(safeBottom, 15) - 45;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(15 * scale, bottomY * scale, 80 * scale, 36 * scale, 10 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('← 返回', 55 * scale, (bottomY + 18) * scale);
 }
 
 // ===================
