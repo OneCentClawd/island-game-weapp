@@ -362,6 +362,29 @@ const SaveManager = {
       this.save();
     }
   },
+  
+  // 批量添加/扣除资源 { coin: 100, diamond: -5 }
+  addResources(obj) {
+    for (const [type, amount] of Object.entries(obj)) {
+      if (this.data.resources[type] !== undefined) {
+        this.data.resources[type] += amount;
+        if (type === 'coin' && amount > 0) {
+          this.data.statistics.totalCoins += amount;
+        }
+      }
+    }
+    this.save();
+  },
+  
+  // 检查资源是否足够
+  hasResources(obj) {
+    for (const [type, amount] of Object.entries(obj)) {
+      if ((this.data.resources[type] || 0) < amount) {
+        return false;
+      }
+    }
+    return true;
+  },
 };
 
 // ===================
