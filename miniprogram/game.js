@@ -3399,6 +3399,7 @@ function renderIslandScene() {
   
   // 确保后续绘制不受透明度影响
   ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
   
   // 建筑
   for (const b of islandState.buildings) {
