@@ -3891,7 +3891,7 @@ function renderIslandScene() {
   // 小狗状态面板
   const panelY = capsuleBottom + 25;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  roundRect(15 * scale, panelY * scale, (W - 30) * scale, 85 * scale, 12 * scale);
+  roundRect(15 * scale, panelY * scale, (W - 30) * scale, 95 * scale, 12 * scale);
   ctx.fill();
   
   // 小狗名字和等级
@@ -3917,43 +3917,47 @@ function renderIslandScene() {
   ctx.fillText(`${puppy.exp || 0}/${expNeeded}`, 140 * scale, (panelY + 17) * scale);
   
   // 好感度
-  ctx.textAlign = 'left';
+  ctx.textAlign = 'right';
   ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.fillStyle = '#fff';
-  ctx.fillText(`💕 ${Math.floor(puppy.love || 0)}`, 200 * scale, (panelY + 18) * scale);
+  ctx.fillText(`❤️ ${Math.floor(puppy.love || 0)}`, (W - 25) * scale, (panelY + 18) * scale);
   
+  // 第二行：饱腹度条
+  ctx.textAlign = 'left';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.fillText(`🍖`, 25 * scale, (panelY + 42) * scale);
   // 饱腹度条背景
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  roundRect(50 * scale, (panelY + 34) * scale, 100 * scale, 14 * scale, 7 * scale);
+  roundRect(50 * scale, (panelY + 32) * scale, (W - 100) * scale, 14 * scale, 7 * scale);
   ctx.fill();
   // 饱腹度条填充
+  const hungerWidth = (W - 100) * (puppy.hunger / 100);
   ctx.fillStyle = puppy.hunger > 30 ? '#4CAF50' : '#ff5722';
-  roundRect(50 * scale, (panelY + 34) * scale, (puppy.hunger) * scale, 14 * scale, 7 * scale);
+  roundRect(50 * scale, (panelY + 32) * scale, hungerWidth * scale, 14 * scale, 7 * scale);
   ctx.fill();
-  // 饱腹度emoji - 最后绘制
-  ctx.font = `bold ${16 * scale}px sans-serif`;
-  ctx.fillText(`🍖`, 25 * scale, (panelY + 42) * scale);
   
+  // 第三行：心情条
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${14 * scale}px sans-serif`;
+  ctx.fillText(`😊`, 25 * scale, (panelY + 62) * scale);
   // 心情条背景
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  roundRect(195 * scale, (panelY + 34) * scale, 100 * scale, 14 * scale, 7 * scale);
+  roundRect(50 * scale, (panelY + 52) * scale, (W - 100) * scale, 14 * scale, 7 * scale);
   ctx.fill();
   // 心情条填充
+  const moodWidth = (W - 100) * (puppy.mood / 100);
   ctx.fillStyle = puppy.mood > 30 ? '#2196F3' : '#ff9800';
-  roundRect(195 * scale, (panelY + 34) * scale, (puppy.mood) * scale, 14 * scale, 7 * scale);
+  roundRect(50 * scale, (panelY + 52) * scale, moodWidth * scale, 14 * scale, 7 * scale);
   ctx.fill();
-  // 心情emoji - 最后绘制
-  ctx.font = `bold ${16 * scale}px sans-serif`;
-  ctx.fillText(`😊`, 170 * scale, (panelY + 42) * scale);
   
-  // 金币显示
+  // 第四行：资源显示
   const res = SaveManager.getResources();
   ctx.fillStyle = '#ffd700';
   ctx.font = `bold ${14 * scale}px sans-serif`;
   ctx.textAlign = 'left';
-  ctx.fillText(`💰 ${res.coin}`, 25 * scale, (panelY + 68) * scale);
+  ctx.fillText(`💰 ${res.coin}`, 25 * scale, (panelY + 80) * scale);
   ctx.fillStyle = '#e1bee7';
-  ctx.fillText(`💎 ${res.diamond}`, 130 * scale, (panelY + 68) * scale);
+  ctx.fillText(`💎 ${res.diamond}`, (W / 2) * scale, (panelY + 80) * scale);
   
   // 底部按钮区
   const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
