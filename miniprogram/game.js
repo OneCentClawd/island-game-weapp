@@ -2819,13 +2819,14 @@ function handleLevelSelectTouch(x, y) {
     return;
   }
   
+  const W = GameConfig.WIDTH;
   const startY = capsuleBottom + 80;
   const cols = 4;
   const totalLevels = MATCH3_LEVELS.length;
-  const btnRadius = 26;
-  const padding = 45;
-  const spacingX = (GameConfig.WIDTH - padding * 2) / (cols - 1);
-  const spacingY = 75;
+  const btnRadius = Math.min(26, (W - 80) / (cols * 2 + 1));
+  const padding = btnRadius + 15;
+  const spacingX = (W - padding * 2) / (cols - 1);
+  const spacingY = btnRadius * 2 + 20;
   const startX = padding;
   const scrollY = levelSelectState.scrollY || 0;
   
@@ -2884,10 +2885,10 @@ function renderLevelSelectScene() {
   const startY = capsuleBottom + 80;
   const cols = 4;
   const totalLevels = MATCH3_LEVELS.length;
-  const btnRadius = 26;
-  const padding = 45;  // 左右边距
+  const btnRadius = Math.min(26, (W - 80) / (cols * 2 + 1));  // 根据屏幕宽度计算
+  const padding = btnRadius + 15;  // 左右边距 = 按钮半径 + 间隙
   const spacingX = (W - padding * 2) / (cols - 1);
-  const spacingY = 75;
+  const spacingY = btnRadius * 2 + 20;
   const startX = padding;
   const scrollY = levelSelectState.scrollY || 0;
   
