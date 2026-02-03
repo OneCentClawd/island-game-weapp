@@ -2795,7 +2795,14 @@ function renderMatch3Result() {
 // ===================
 // 关卡选择场景
 // ===================
-function initLevelSelectScene() {}
+let levelSelectState = {
+  scrollY: 0,
+  maxScroll: 0,
+};
+
+function initLevelSelectScene() {
+  levelSelectState.scrollY = 0;
+}
 
 function handleLevelSelectTouch(x, y) {
   // 关卡按钮（也用于返回按钮位置计算）
@@ -2817,14 +2824,18 @@ function handleLevelSelectTouch(x, y) {
   const totalLevels = MATCH3_LEVELS.length;
   const btnRadius = 26;
   const spacingX = (GameConfig.WIDTH - 60) / (cols - 1);
-  const spacingY = 75;  // 固定间距
+  const spacingY = 75;
   const startX = 30 + btnRadius;
+  const scrollY = levelSelectState.scrollY || 0;
   
   for (let i = 0; i < totalLevels; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const lx = startX + col * spacingX;
-    const ly = startY + row * spacingY;
+    const ly = startY + row * spacingY - scrollY;
+    
+    // 跳过不可见的
+    if (ly + btnRadius < capsuleBottom + 40 || ly - btnRadius > GameConfig.HEIGHT) continue;
     
     if (x >= lx - btnRadius && x <= lx + btnRadius && y >= ly - btnRadius && y <= ly + btnRadius) {
       const level = i + 1;
@@ -2868,21 +2879,32 @@ function renderLevelSelectScene() {
   ctx.fillStyle = 'rgba(255,255,255,0.8)';
   ctx.fillText(`已解锁 ${SaveManager.data.highestLevel}/${MATCH3_LEVELS.length} 关`, W / 2 * scale, (capsuleBottom + 30) * scale);
   
-  // 关卡按钮
+  // 关卡按钮（支持滚动）
   const startY = capsuleBottom + 80;
   const cols = 4;
   const totalLevels = MATCH3_LEVELS.length;
   const btnRadius = 26;
   const spacingX = (W - 60) / (cols - 1);
-  const spacingY = 75;  // 固定间距
+  const spacingY = 75;
   const startX = 30 + btnRadius;
+  const scrollY = levelSelectState.scrollY || 0;
+  
+  // 计算最大滚动
+  const rows = Math.ceil(totalLevels / cols);
+  const totalHeight = rows * spacingY;
+  const safeBottom = systemInfo.safeArea ? (H - systemInfo.safeArea.bottom) : 20;
+  const visibleHeight = H - startY - safeBottom - 20;
+  levelSelectState.maxScroll = Math.max(0, totalHeight - visibleHeight);
   
   for (let i = 0; i < totalLevels; i++) {
     const level = i + 1;
     const col = i % cols;
     const row = Math.floor(i / cols);
     const x = startX + col * spacingX;
-    const y = startY + row * spacingY;
+    const y = startY + row * spacingY - scrollY;
+    
+    // 跳过不可见的
+    if (y + btnRadius < capsuleBottom + 40 || y - btnRadius > H) continue;
     
     const unlocked = level <= SaveManager.data.highestLevel;
     const stars = SaveManager.data.levelStars[level] || 0;
@@ -5147,6 +5169,9 @@ wx.onTouchStart(function(e) {
     if (currentScene === 'Achievement') {
       scrollStartY = achievementState.scrollY || 0;
     }
+    if (currentScene === 'LevelSelect') {
+      scrollStartY = levelSelectState.scrollY || 0;
+    }
     
     switch (currentScene) {
       case 'MainMenu': handleMainMenuTouch(x, y); break;
@@ -5173,6 +5198,13 @@ wx.onTouchMove(function(e) {
       const deltaY = touchStartY - y;
       const newScroll = scrollStartY + deltaY;
       achievementState.scrollY = Math.max(0, Math.min(newScroll, achievementState.maxScroll || 0));
+    }
+    
+    // 关卡选择页滚动
+    if (currentScene === 'LevelSelect') {
+      const deltaY = touchStartY - y;
+      const newScroll = scrollStartY + deltaY;
+      levelSelectState.scrollY = Math.max(0, Math.min(newScroll, levelSelectState.maxScroll || 0));
     }
     
     if (currentScene === 'Merge') {
