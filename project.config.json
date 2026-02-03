@@ -1,0 +1,23 @@
+{
+  "miniprogramRoot": "miniprogram/",
+  "compileType": "miniprogram",
+  "projectname": "island-game",
+  "appid": "wxXXXXXXXXXXXXXXXX",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "uglifyFileName": false,
+    "autoAudits": false,
+    "urlCheck": true,
+    "compileHotReLoad": false,
+    "preloadBackgroundData": false,
+    "lazyloadPlaceholderEnable": false,
+    "useStaticServer": true
+  },
+  "simulatorType": "wechat",
+  "simulatorPluginLibVersion": {},
+  "condition": {},
+  "description": "小岛物语 - 合成放置游戏"
+}
