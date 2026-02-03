@@ -1060,7 +1060,8 @@ function createMergeEffect(pos) {
   }
 }
 
-function handleMergeTouch(x, y) {
+// 拖拽开始
+function handleMergeTouchStart(x, y) {
   const cellSize = MERGE_GRID.cellSize;
   const cardSize = cellSize - 12;
   
@@ -1080,7 +1081,6 @@ function handleMergeTouch(x, y) {
         if (checkShopperItems(card.shopper)) {
           fulfillShopper(card.shopper);
         } else {
-          // 显示缺少什么
           const missing = [];
           for (const want of card.shopper.wants) {
             const hasCount = mergeState.items.filter(i => i.config.key === want.key).length;
@@ -1096,6 +1096,7 @@ function handleMergeTouch(x, y) {
     }
   }
   
+  // 检测点击物品
   for (const item of mergeState.items) {
     const pos = getMergeCellCenter(item.x, item.y);
     const halfSize = (cardSize / 2) * item.scale;
@@ -1103,40 +1104,104 @@ function handleMergeTouch(x, y) {
     if (x >= pos.x - halfSize && x <= pos.x + halfSize &&
         y >= pos.y - halfSize && y <= pos.y + halfSize) {
       
+      // 仓库点击
       if (item.config.key === 'warehouse') {
         clickWarehouse();
-        mergeState.selectedItem = null;
         return;
       }
       
+      // 金币直接收集
       if (item.config.value && !item.config.mergeInto) {
         collectCoin(item);
-        mergeState.selectedItem = null;
         return;
       }
       
-      const now = Date.now();
+      // 开始拖拽
+      dragState.isDragging = true;
+      dragState.item = item;
+      dragState.startX = x;
+      dragState.startY = y;
+      dragState.offsetX = 0;
+      dragState.offsetY = 0;
+      dragState.originalX = item.x;
+      dragState.originalY = item.y;
       
-      if (mergeState.selectedItem) {
-        if (mergeState.selectedItem.id === item.id) {
-          if (now - item.lastClickTime < 500 && item.config.value) {
-            collectCoin(item);
-            mergeState.selectedItem = null;
-            return;
-          }
-          mergeState.selectedItem = null;
-        } else if (tryMerge(mergeState.selectedItem, item)) {
-          mergeState.selectedItem = null;
-        } else {
-          mergeState.selectedItem = item;
-        }
-      } else {
-        mergeState.selectedItem = item;
-      }
-      
-      item.lastClickTime = now;
+      // 选中该物品
+      mergeState.selectedItem = item;
       return;
     }
+  }
+  
+  // 点击空白处取消选中
+  mergeState.selectedItem = null;
+}
+
+// 拖拽移动
+function handleMergeTouchMove(x, y) {
+  if (!dragState.isDragging || !dragState.item) return;
+  
+  dragState.offsetX = x - dragState.startX;
+  dragState.offsetY = y - dragState.startY;
+}
+
+// 拖拽结束
+function handleMergeTouchEnd() {
+  if (!dragState.isDragging || !dragState.item) {
+    dragState.isDragging = false;
+    return;
+  }
+  
+  const item = dragState.item;
+  const cellSize = MERGE_GRID.cellSize;
+  
+  // 计算拖拽后的目标格子
+  const currentPos = getMergeCellCenter(item.x, item.y);
+  const targetX = currentPos.x + dragState.offsetX;
+  const targetY = currentPos.y + dragState.offsetY;
+  
+  // 转换为格子坐标
+  const gridX = Math.floor((targetX - mergeState.gridOffsetX) / cellSize);
+  const gridY = Math.floor((targetY - mergeState.gridOffsetY) / cellSize);
+  
+  // 检查是否有效移动（拖动距离足够）
+  const dragDist = Math.sqrt(dragState.offsetX ** 2 + dragState.offsetY ** 2);
+  
+  if (dragDist > 20 && gridX >= 0 && gridX < MERGE_GRID.cols && gridY >= 0 && gridY < MERGE_GRID.rows) {
+    // 检查目标位置
+    const targetItem = mergeState.items.find(i => i.x === gridX && i.y === gridY && i.id !== item.id);
+    
+    if (targetItem) {
+      // 目标有物品，尝试合成
+      if (tryMerge(item, targetItem)) {
+        mergeState.selectedItem = null;
+      } else {
+        // 无法合成，交换位置
+        const tempX = targetItem.x;
+        const tempY = targetItem.y;
+        targetItem.x = item.x;
+        targetItem.y = item.y;
+        item.x = tempX;
+        item.y = tempY;
+        saveMergeGame();
+      }
+    } else {
+      // 目标为空，移动过去
+      item.x = gridX;
+      item.y = gridY;
+      saveMergeGame();
+    }
+  }
+  
+  // 重置拖拽状态
+  dragState.isDragging = false;
+  dragState.item = null;
+  dragState.offsetX = 0;
+  dragState.offsetY = 0;
+}
+
+// 兼容旧的点击处理（保留双击收集等）
+function handleMergeTouch(x, y) {
+  handleMergeTouchStart(x, y);
   }
   
   mergeState.selectedItem = null;
@@ -1360,18 +1425,38 @@ function drawMergeGrid() {
   );
   ctx.fill();
   
+  // 计算拖拽目标格子
+  let targetGridX = -1, targetGridY = -1;
+  if (dragState.isDragging && dragState.item) {
+    const currentPos = getMergeCellCenter(dragState.item.x, dragState.item.y);
+    const targetX = currentPos.x + dragState.offsetX;
+    const targetY = currentPos.y + dragState.offsetY;
+    targetGridX = Math.floor((targetX - mergeState.gridOffsetX) / cellSize);
+    targetGridY = Math.floor((targetY - mergeState.gridOffsetY) / cellSize);
+  }
+  
   for (let row = 0; row < MERGE_GRID.rows; row++) {
     for (let col = 0; col < MERGE_GRID.cols; col++) {
       const x = mergeState.gridOffsetX + col * cellSize;
       const y = mergeState.gridOffsetY + row * cellSize;
       
+      // 检查是否是拖拽目标格子
+      const isTarget = (col === targetGridX && row === targetGridY);
+      
       const isLight = (row + col) % 2 === 0;
-      ctx.fillStyle = isLight ? 'rgba(255,255,255,0.15)' : 'rgba(224,224,224,0.15)';
+      
+      if (isTarget) {
+        // 目标格子高亮
+        ctx.fillStyle = 'rgba(76,175,80,0.5)';
+      } else {
+        ctx.fillStyle = isLight ? 'rgba(255,255,255,0.15)' : 'rgba(224,224,224,0.15)';
+      }
+      
       roundRect((x + 2) * scale, (y + 2) * scale, (cellSize - 4) * scale, (cellSize - 4) * scale, 6 * scale);
       ctx.fill();
       
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-      ctx.lineWidth = 1 * scale;
+      ctx.strokeStyle = isTarget ? 'rgba(76,175,80,0.8)' : 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = isTarget ? 2 * scale : 1 * scale;
       roundRect((x + 2) * scale, (y + 2) * scale, (cellSize - 4) * scale, (cellSize - 4) * scale, 6 * scale);
       ctx.stroke();
     }
@@ -1382,69 +1467,109 @@ function drawMergeItems() {
   const cellSize = MERGE_GRID.cellSize;
   const cardSize = cellSize - 12; // 卡片比格子小一点
   
+  // 先绘制非拖拽中的物品
   for (const item of mergeState.items) {
-    if (item.scale < 1) item.scale = Math.min(1, item.scale + 0.1);
-    
-    const pos = getMergeCellCenter(item.x, item.y);
-    const currentCardSize = cardSize * item.scale;
-    const halfCard = currentCardSize / 2;
-    
-    // 选中高亮
-    if (mergeState.selectedItem && mergeState.selectedItem.id === item.id) {
-      ctx.strokeStyle = '#ffff00';
-      ctx.lineWidth = 3 * scale;
-      roundRect((pos.x - halfCard - 4) * scale, (pos.y - halfCard - 4) * scale, (currentCardSize + 8) * scale, (currentCardSize + 8) * scale, 14 * scale);
-      ctx.stroke();
+    // 跳过正在拖拽的物品（最后绘制）
+    if (dragState.isDragging && dragState.item && dragState.item.id === item.id) {
+      continue;
     }
     
-    // 阴影
+    drawSingleItem(item, 0, 0);
+  }
+  
+  // 最后绘制拖拽中的物品（在最上层）
+  if (dragState.isDragging && dragState.item) {
+    drawSingleItem(dragState.item, dragState.offsetX, dragState.offsetY, true);
+  }
+}
+
+// 绘制单个物品
+function drawSingleItem(item, offsetX = 0, offsetY = 0, isDragging = false) {
+  const cellSize = MERGE_GRID.cellSize;
+  const cardSize = cellSize - 12;
+  
+  if (item.scale < 1) item.scale = Math.min(1, item.scale + 0.1);
+    
+  const basePos = getMergeCellCenter(item.x, item.y);
+  const pos = {
+    x: basePos.x + offsetX,
+    y: basePos.y + offsetY
+  };
+  
+  const currentCardSize = cardSize * item.scale * (isDragging ? 1.1 : 1); // 拖拽时略微放大
+  const halfCard = currentCardSize / 2;
+  
+  // 拖拽时的阴影更大更深
+  if (isDragging) {
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    roundRect((pos.x - halfCard + 8) * scale, (pos.y - halfCard + 8) * scale, currentCardSize * scale, currentCardSize * scale, 12 * scale);
+    ctx.fill();
+  }
+  
+  // 选中高亮
+  if ((mergeState.selectedItem && mergeState.selectedItem.id === item.id) || isDragging) {
+    ctx.strokeStyle = isDragging ? '#00ff00' : '#ffff00';
+    ctx.lineWidth = 3 * scale;
+    roundRect((pos.x - halfCard - 4) * scale, (pos.y - halfCard - 4) * scale, (currentCardSize + 8) * scale, (currentCardSize + 8) * scale, 14 * scale);
+    ctx.stroke();
+  }
+  
+  // 阴影
+  if (!isDragging) {
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     roundRect((pos.x - halfCard + 3) * scale, (pos.y - halfCard + 3) * scale, currentCardSize * scale, currentCardSize * scale, 12 * scale);
     ctx.fill();
+  }
+  
+  // 背景
+  ctx.fillStyle = Colors.TIER[item.config.tier] || '#607d8b';
+  roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, currentCardSize * scale, currentCardSize * scale, 12 * scale);
+  ctx.fill();
+  
+  // 边框
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 2 * scale;
+  roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, currentCardSize * scale, currentCardSize * scale, 12 * scale);
+  ctx.stroke();
+  
+  // 高光
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  roundRect((pos.x - halfCard + 4) * scale, (pos.y - halfCard + 4) * scale, (currentCardSize - 8) * scale, (currentCardSize / 2 - 4) * scale, 8 * scale);
+  ctx.fill();
+  
+  // Emoji - 大小根据卡片调整
+  const emojiSize = Math.floor(cardSize * 0.55);
+  ctx.font = `${emojiSize * item.scale * (isDragging ? 1.1 : 1) * scale}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(item.config.emoji, pos.x * scale, pos.y * scale);
+  
+  // 等级徽章
+  if (item.config.tier > 0) {
+    const badgeSize = Math.floor(cardSize * 0.22);
+    const badgeX = pos.x + halfCard - badgeSize * 0.5;
+    const badgeY = pos.y - halfCard + badgeSize * 0.5;
     
-    // 背景
-    ctx.fillStyle = Colors.TIER[item.config.tier] || '#607d8b';
-    roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, currentCardSize * scale, currentCardSize * scale, 12 * scale);
+    ctx.beginPath();
+    ctx.arc(badgeX * scale, badgeY * scale, (badgeSize + 2) * scale, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fill();
     
-    // 边框
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = 2 * scale;
-    roundRect((pos.x - halfCard) * scale, (pos.y - halfCard) * scale, currentCardSize * scale, currentCardSize * scale, 12 * scale);
-    ctx.stroke();
-    
-    // 高光
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    roundRect((pos.x - halfCard + 4) * scale, (pos.y - halfCard + 4) * scale, (currentCardSize - 8) * scale, (currentCardSize / 2 - 4) * scale, 8 * scale);
+    ctx.beginPath();
+    ctx.arc(badgeX * scale, badgeY * scale, badgeSize * scale, 0, Math.PI * 2);
+    ctx.fillStyle = Colors.TIER_BADGE[item.config.tier];
     ctx.fill();
     
-    // Emoji - 大小根据卡片调整
-    const emojiSize = Math.floor(cardSize * 0.55);
-    ctx.font = `${emojiSize * item.scale * scale}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(item.config.emoji, pos.x * scale, pos.y * scale);
-    
-    // 等级徽章
-    if (item.config.tier > 0) {
-      const badgeSize = Math.floor(cardSize * 0.22);
-      const badgeX = pos.x + halfCard - badgeSize * 0.5;
-      const badgeY = pos.y - halfCard + badgeSize * 0.5;
-      
-      ctx.beginPath();
-      ctx.arc(badgeX * scale, badgeY * scale, (badgeSize + 2) * scale, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0,0,0,0.7)';
-      ctx.fill();
-      
-      ctx.beginPath();
-      ctx.arc(badgeX * scale, badgeY * scale, badgeSize * scale, 0, Math.PI * 2);
-      ctx.fillStyle = Colors.TIER_BADGE[item.config.tier];
-      ctx.fill();
-      
-      ctx.fillStyle = '#fff';
-      ctx.font = `bold ${badgeSize * scale}px sans-serif`;
-      ctx.fillText(item.config.tier.toString(), badgeX * scale, badgeY * scale);
-    }
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${badgeSize * scale}px sans-serif`;
+    ctx.fillText(item.config.tier.toString(), badgeX * scale, badgeY * scale);
+  }
+  
+  // 金币显示
+  if (item.config.value) {
+    ctx.fillStyle = '#ffd700';
+    ctx.font = `bold ${12 * scale}px sans-serif`;
+    ctx.fillText(`💰${item.config.value}`, pos.x * scale, (pos.y + halfCard - 8) * scale);
   }
 }
 
@@ -4401,6 +4526,19 @@ function roundRect(x, y, w, h, r) {
 // ===================
 // 触摸处理
 // ===================
+
+// 拖拽状态
+let dragState = {
+  isDragging: false,
+  item: null,
+  startX: 0,
+  startY: 0,
+  offsetX: 0,
+  offsetY: 0,
+  originalX: 0,
+  originalY: 0,
+};
+
 wx.onTouchStart(function(e) {
   if (e.touches.length > 0) {
     const touch = e.touches[0];
@@ -4409,7 +4547,7 @@ wx.onTouchStart(function(e) {
     
     switch (currentScene) {
       case 'MainMenu': handleMainMenuTouch(x, y); break;
-      case 'Merge': handleMergeTouch(x, y); break;
+      case 'Merge': handleMergeTouchStart(x, y); break;
       case 'Match3': handleMatch3Touch(x, y); break;
       case 'LevelSelect': handleLevelSelectTouch(x, y); break;
       case 'Island': handleIslandTouch(x, y); break;
@@ -4417,6 +4555,24 @@ wx.onTouchStart(function(e) {
       case 'Achievement': handleAchievementTouch(x, y); break;
       case 'DailyTask': handleDailyTaskTouch(x, y); break;
     }
+  }
+});
+
+wx.onTouchMove(function(e) {
+  if (e.touches.length > 0) {
+    const touch = e.touches[0];
+    const x = touch.clientX / scale;
+    const y = touch.clientY / scale;
+    
+    if (currentScene === 'Merge') {
+      handleMergeTouchMove(x, y);
+    }
+  }
+});
+
+wx.onTouchEnd(function(e) {
+  if (currentScene === 'Merge') {
+    handleMergeTouchEnd();
   }
 });
 
