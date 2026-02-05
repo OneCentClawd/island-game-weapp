@@ -16,8 +16,11 @@ wx.cloud.init({
 const canvas = wx.createCanvas();
 const systemInfo = wx.getSystemInfoSync();
 
+// 高清适配 - 使用设备像素比
+const dpr = systemInfo.pixelRatio || 2;
+
 // ===================
-// 游戏配置 - 直接使用屏幕尺寸
+// 游戏配置 - 使用逻辑像素
 // ===================
 const GameConfig = {
   WIDTH: systemInfo.windowWidth,
@@ -25,11 +28,12 @@ const GameConfig = {
   VERSION: '0.3.0',
 };
 
-// 不缩放，直接 1:1
-const scale = 1;
+// 缩放比例 = 设备像素比，让绘制更清晰
+const scale = dpr;
 
-canvas.width = systemInfo.windowWidth;
-canvas.height = systemInfo.windowHeight;
+// Canvas 使用物理像素（高清）
+canvas.width = systemInfo.windowWidth * dpr;
+canvas.height = systemInfo.windowHeight * dpr;
 
 const ctx = canvas.getContext('2d');
 
