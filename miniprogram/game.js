@@ -5479,10 +5479,12 @@ let touchStartY = 0;
 let scrollStartY = 0;
 
 wx.onTouchStart(function(e) {
+  console.log('TouchStart event:', e);
   if (e.touches.length > 0) {
     const touch = e.touches[0];
     const x = touch.clientX / scale;
     const y = touch.clientY / scale;
+    console.log('Touch pos:', x, y, 'Scene:', currentScene, 'Buttons:', mainMenuState.buttons);
     
     // 记录触摸起点（用于滚动）
     touchStartY = y;
